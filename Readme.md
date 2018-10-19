@@ -2,15 +2,19 @@
 
 A tool for operating multi Docker Compose projects in a directory.
 
-## requirements
+## Requirements
 	
 	python2
 	docker
 	docker-compose
 
-## usage
+## Usage
 
 	python docker-compose-all.py --help
+
+## Documentation
+
+	cat docker-compose-all.py
 
 ## FAQ
 
