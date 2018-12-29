@@ -193,9 +193,10 @@ if __name__ == "__main__":
     encoding = sys.stdin.encoding
     if encoding is None or encoding == '' or encoding.lower() == 'ascii':
         encoding = "UTF-8"
-        
-    docker_files_dir = unicode(args.docker_files_dir, encoding)
+
+    docker_files_dir = args.docker_files_dir
     docker_files_dir = os.path.realpath(os.path.expanduser(docker_files_dir))
+    docker_files_dir = unicode(docker_files_dir, encoding)
 
     if not os.path.isdir(docker_files_dir):
         error_info = '%s is not a valid directory' % (repr(docker_files_dir), )
