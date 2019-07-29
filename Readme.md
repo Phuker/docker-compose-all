@@ -1,6 +1,8 @@
 # docker-compose-all
 
-A tool for operating multi Docker Compose projects in a directory.
+A tool for operating multi docker compose projects   
+
+![screenshots1.png](./screenshots/screenshot1.png)  
 
 ## Requirements
 	
@@ -10,7 +12,10 @@ A tool for operating multi Docker Compose projects in a directory.
 
 ## Usage
 
-	python docker-compose-all.py --help
+	# python docker-compose-all.py --help
+	usage: docker-compose-all.py [-h]
+                                 [--restart | --down | --build | --up | --ps | --top | --stop]
+                                 DIR
 
 ## Documentation
 
