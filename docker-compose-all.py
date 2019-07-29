@@ -108,13 +108,17 @@ COMMAND_STOP = ['docker-compose', 'stop']
 errors = []
 error_dirs = []
 def all_run_commands(docker_compose_dirs, commands):
-    global errors
+    dir_count = len(docker_compose_dirs)
     for command in commands:
         logging.info('Running %s in all docker compoes dirs', colored(repr(command), 'green', reverse=True))
-        for docker_compose_dir in docker_compose_dirs:
-            logging.info('Running %s in %s',
+
+        for dir_index in xrange(dir_count):
+            docker_compose_dir = docker_compose_dirs[dir_index]
+            logging.info('Running %s in %s (%d/%d)',
                          colored(repr(command), 'green', bold=True),
-                         colored(repr(docker_compose_dir), 'green', bold=True)
+                         colored(repr(docker_compose_dir), 'green', bold=True),
+                         dir_index + 1,
+                         dir_count
                          )
             if docker_compose_dir in error_dirs:
                 logging.info('Skiped because error happened')
