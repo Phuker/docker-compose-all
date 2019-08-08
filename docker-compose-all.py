@@ -75,7 +75,7 @@ def colored(s, foreground, background=None, **kwargs):
 def scan_dirs(docker_files_dir):
     docker_compose_dirs = []
     logging.info('Scanning %s...', colored(repr(docker_files_dir), 'yellow', bold=True))
-    for top, dirs, files in os.walk(docker_files_dir):
+    for top, dirs, files in os.walk(docker_files_dir, followlinks=True):
         docker_compose_dir = os.path.abspath(top)
 
         if YAML_FILENAME in files and docker_compose_dir not in docker_compose_dirs:
@@ -199,7 +199,7 @@ if __name__ == "__main__":
         encoding = "UTF-8"
 
     docker_files_dir = args.docker_files_dir
-    docker_files_dir = os.path.realpath(os.path.expanduser(docker_files_dir))
+    docker_files_dir = os.path.abspath(os.path.expanduser(docker_files_dir))
     docker_files_dir = unicode(docker_files_dir, encoding)
 
     if not os.path.isdir(docker_files_dir):
