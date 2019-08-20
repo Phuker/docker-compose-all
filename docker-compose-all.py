@@ -121,7 +121,7 @@ def all_run_commands(docker_compose_dirs, commands):
                          dir_count
                          )
             if docker_compose_dir in error_dirs:
-                logging.info('Skiped because error happened')
+                logging.warning('Skiped because error happened')
                 continue
 
             os.chdir(docker_compose_dir)
