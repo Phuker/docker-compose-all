@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # encoding: utf-8
 
 import sys
@@ -8,14 +8,40 @@ import logging
 import subprocess
 import argparse
 
+__version__ = '0.1.0'
+YAML_FILENAME = u'docker-compose.yml'
+EXIT_ON_ERROR = False
+
+
+logging_stream = sys.stdout
+logging_format = '\033[1m%(asctime)s [%(levelname)s]:\033[0m%(message)s'
+
+if 'DEBUG' in os.environ:
+    logging_level = logging.DEBUG
+else:
+    logging_level = logging.INFO
+
+if logging_stream.isatty():
+    logging_date_format = '%H:%M:%S'
+else:
+    print('', file=logging_stream)
+    logging_date_format = '%Y-%m-%d %H:%M:%S'
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s]:%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    stream=sys.stdout
+    level=logging_level,
+    format=logging_format,
+    datefmt=logging_date_format,
+    stream=logging_stream,
 )
 
+logging.addLevelName(logging.CRITICAL, '\033[31m{}\033[39m'.format(logging.getLevelName(logging.CRITICAL)))
+logging.addLevelName(logging.ERROR, '\033[31m{}\033[39m'.format(logging.getLevelName(logging.ERROR)))
+logging.addLevelName(logging.WARNING, '\033[33m{}\033[39m'.format(logging.getLevelName(logging.WARNING)))
+logging.addLevelName(logging.INFO, '\033[36m{}\033[39m'.format(logging.getLevelName(logging.INFO)))
+logging.addLevelName(logging.DEBUG, '\033[36m{}\033[39m'.format(logging.getLevelName(logging.DEBUG)))
+
+
+print('docker-compose-all version {}'.format(__version__), file=logging_stream)
 
 # run as root
 if not os.getuid() == 0:
@@ -25,11 +51,8 @@ else:
     logging.debug('Running as root.')
 
 
-YAML_FILENAME = u'docker-compose.yml'
-EXIT_ON_ERROR = False
-
-
 def check_system():
+    logging.info('Checking docker & docker-compose installation')
     commands = [
         ['docker', '--version'],
         ['docker-compose', '--version'],
@@ -75,7 +98,7 @@ def colored(s, foreground, background=None, **kwargs):
 def scan_dirs(docker_files_dir):
     docker_compose_dirs = []
     logging.info('Scanning %s...', colored(repr(docker_files_dir), 'yellow', bold=True))
-    for top, dirs, files in os.walk(docker_files_dir, followlinks=True):
+    for top, __, files in os.walk(docker_files_dir, followlinks=True):
         docker_compose_dir = os.path.abspath(top)
 
         if YAML_FILENAME in files and docker_compose_dir not in docker_compose_dirs:
@@ -98,6 +121,7 @@ def clean():
     subprocess.call(command)
 
 
+# default docker-compose command
 COMMAND_DOWN = ['docker-compose', 'down', '--rmi', 'all']
 COMMAND_BUILD = ['docker-compose', 'build', '--pull']
 COMMAND_UP = ['docker-compose', 'up', '-d']
@@ -112,7 +136,7 @@ def all_run_commands(docker_compose_dirs, commands):
     for command in commands:
         logging.info('Running %s in all docker compoes dirs', colored(repr(command), 'green', reverse=True))
 
-        for dir_index in xrange(dir_count):
+        for dir_index in range(dir_count):
             docker_compose_dir = docker_compose_dirs[dir_index]
             logging.info('Running %s in %s (%d/%d)',
                          colored(repr(command), 'green', bold=True),
@@ -125,7 +149,7 @@ def all_run_commands(docker_compose_dirs, commands):
                 continue
 
             os.chdir(docker_compose_dir)
-            print ''
+            print('', file=logging_stream)
             try:
                 subprocess.check_call(command)
             except subprocess.CalledProcessError as e:
@@ -135,13 +159,14 @@ def all_run_commands(docker_compose_dirs, commands):
                 error_dirs.append(docker_compose_dir)
                 logging.error(colored(error_info, 'red', bold=True))
                 if EXIT_ON_ERROR:
-                    print 'EXIT_ON_ERROR. Exiting.'
+                    print('EXIT_ON_ERROR. Exiting.', file=logging_stream)
                     sys.exit(1)
-            print ''
+            print('', file=logging_stream)
 
 
 def all_restart(docker_compose_dirs):
     commands = [
+        COMMAND_STOP,
         COMMAND_DOWN,
         COMMAND_BUILD,
         COMMAND_UP,
@@ -175,32 +200,54 @@ def all_stop(docker_compose_dirs):
     all_run_commands(docker_compose_dirs, [COMMAND_STOP])
 
 
-if __name__ == "__main__":
+def docker_compose_options(args):
+    global COMMAND_DOWN, COMMAND_BUILD, COMMAND_STOP
+
+    if args.normi:
+        COMMAND_DOWN = ['docker-compose', 'down']
+
+    if args.nopull:
+        COMMAND_BUILD = ['docker-compose', 'build']
+
+    if args.dokill:
+        COMMAND_STOP = ['docker-compose', 'kill']
+
+
+def parse_args():
     parser = argparse.ArgumentParser(
-        description='Control all docker compose projects from a directory.',
+        description='A very simple docker cluster management tool. Control all docker compose projects in a directory.',
         epilog='https://github.com/Phuker',
         add_help=True
     )
-    group = parser.add_mutually_exclusive_group()
-    #group.add_argument('--show', action="store_true", help="Show all")
-    group.add_argument('--restart',  action="store_true", help="Completely rebuild and rerun all")
-    group.add_argument('--down', action="store_true", help="Make all down")
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument('--restart',  action="store_true", help="Completely rebuild and rerun all. Including the following steps: stop, down, build, up, ps, and clean up.")
+    group.add_argument('--stop', action="store_true", help="Stop all containers")
+    group.add_argument('--down', action="store_true", help="Make all down. Stop and remove containers, networks")
     group.add_argument('--build', action="store_true", help="Rebuild all")
     group.add_argument('--up', action="store_true", help="Make all up")
     group.add_argument('--ps', action="store_true", help="Each ps")
     group.add_argument('--top', action="store_true", help="List all process")
-    group.add_argument('--stop', action="store_true", help="All stop")
+    
 
-    parser.add_argument('docker_files_dir', metavar="DIR", help="Directory contains all docker-compose files")
+    dc_opt_group = parser.add_argument_group('docker-compose options')
+    dc_opt_group.add_argument('--normi', action='store_true', help='Do NOT remove docker images when running "docker-compose down"')
+    dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker-compose build"')
+    dc_opt_group.add_argument('--dokill', action='store_true', help='Run "docker-compose kill" instead of "docker-compose stop"')
+
+    parser.add_argument('docker_files_dir', metavar="DIR", help="A directory which contains docker-compose projects")
     args = parser.parse_args()
 
-    encoding = sys.stdin.encoding
-    if encoding is None or encoding == '' or encoding.lower() == 'ascii':
-        encoding = "UTF-8"
+    return args
+
+
+def main():
+    _start_time_stamp = time.time()
+    
+    args = parse_args()
+    docker_compose_options(args)
 
     docker_files_dir = args.docker_files_dir
     docker_files_dir = os.path.abspath(os.path.expanduser(docker_files_dir))
-    docker_files_dir = unicode(docker_files_dir, encoding)
 
     if not os.path.isdir(docker_files_dir):
         error_info = '%s is not a valid directory' % (repr(docker_files_dir), )
@@ -235,9 +282,13 @@ if __name__ == "__main__":
         logging.info('Commands all run, some error:')
         for error_info in errors:
             logging.error(colored(error_info, 'red', bold=True))
+        logging.info('Time elapsed: %d', time.time() - _start_time_stamp)
         logging.info('Exiting with some commands error')
         sys.exit(1)
     else:
+        logging.info('Time elapsed: %.2fs', time.time() - _start_time_stamp)
         logging.info('Exiting')
 
 
+if __name__ == "__main__":
+    main()
