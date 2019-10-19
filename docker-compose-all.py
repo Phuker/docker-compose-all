@@ -8,7 +8,7 @@ import logging
 import subprocess
 import argparse
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 YAML_FILENAME = u'docker-compose.yml'
 EXIT_ON_ERROR = False
 
@@ -71,12 +71,14 @@ def colored(s, foreground, background=None, **kwargs):
         'red': '31',
         'green': '32',
         'yellow': '33',
+        'blue': '34',
         'cyan': '36',
+        'white': '37',
         'default': '39',
-        'white': '39',
     }
     background_color_table = {
         'black': '40',
+        'default': '49',
     }
     options = []
 
@@ -284,11 +286,11 @@ def main():
         for error_info in errors:
             logging.error(colored(error_info, 'red', bold=True))
         logging.info('Time elapsed: %d', time.time() - _start_time_stamp)
-        logging.info('Exiting with some commands error')
+        logging.info('Command %s exit with some error', colored(repr(' '.join(sys.argv)), 'default', bold=True))
         sys.exit(1)
     else:
         logging.info('Time elapsed: %.2fs', time.time() - _start_time_stamp)
-        logging.info('Exiting')
+        logging.info('Command %s exit with no error', colored(repr(' '.join(sys.argv)), 'default', bold=True))
 
 
 if __name__ == "__main__":
