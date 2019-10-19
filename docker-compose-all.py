@@ -8,7 +8,7 @@ import logging
 import subprocess
 import argparse
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 YAML_FILENAME = u'docker-compose.yml'
 EXIT_ON_ERROR = False
 
@@ -39,9 +39,6 @@ logging.addLevelName(logging.ERROR, '\033[31m{}\033[39m'.format(logging.getLevel
 logging.addLevelName(logging.WARNING, '\033[33m{}\033[39m'.format(logging.getLevelName(logging.WARNING)))
 logging.addLevelName(logging.INFO, '\033[36m{}\033[39m'.format(logging.getLevelName(logging.INFO)))
 logging.addLevelName(logging.DEBUG, '\033[36m{}\033[39m'.format(logging.getLevelName(logging.DEBUG)))
-
-
-print('docker-compose-all version {}'.format(__version__), file=logging_stream)
 
 # run as root
 if not os.getuid() == 0:
@@ -75,6 +72,8 @@ def colored(s, foreground, background=None, **kwargs):
         'green': '32',
         'yellow': '33',
         'cyan': '36',
+        'default': '39',
+        'white': '39',
     }
     background_color_table = {
         'black': '40',
@@ -97,22 +96,22 @@ def colored(s, foreground, background=None, **kwargs):
 
 def scan_dirs(docker_files_dir):
     docker_compose_dirs = []
-    logging.info('Scanning %s...', colored(repr(docker_files_dir), 'yellow', bold=True))
+    logging.info('Scanning %s...', colored(repr(docker_files_dir), 'cyan', bold=True))
     for top, __, files in os.walk(docker_files_dir, followlinks=True):
         docker_compose_dir = os.path.abspath(top)
 
         if YAML_FILENAME in files and docker_compose_dir not in docker_compose_dirs:
-            logging.info('Found: %s', colored(repr(docker_compose_dir), 'cyan', bold=True))
+            logging.info('Found: %s', colored(repr(docker_compose_dir), 'cyan'))
             docker_compose_dirs.append(docker_compose_dir)
 
-    logging.info('Count: %s', colored(len(docker_compose_dirs), 'yellow', bold=True))
+    logging.info('Found %s docker compose projects', colored(len(docker_compose_dirs), 'default', bold=True))
     return docker_compose_dirs
 
 
 def clean():
     logging.info('Removing all unused image')
     command = ['docker', 'image', 'prune', '-f']
-    logging.info('Running %s', colored(repr(command),'green',bold=True))
+    logging.info('Running %s', colored(repr(command), 'green', bold=True))
     subprocess.call(command)
 
     logging.info('Removing all unused network')
@@ -122,25 +121,26 @@ def clean():
 
 
 # default docker-compose command
+COMMAND_STOP = ['docker-compose', 'stop']
 COMMAND_DOWN = ['docker-compose', 'down', '--rmi', 'all']
 COMMAND_BUILD = ['docker-compose', 'build', '--pull']
 COMMAND_UP = ['docker-compose', 'up', '-d']
 COMMAND_PS = ['docker-compose', 'ps']
 COMMAND_TOP = ['docker-compose', 'top']
-COMMAND_STOP = ['docker-compose', 'stop']
+
 
 errors = []
 error_dirs = []
 def all_run_commands(docker_compose_dirs, commands):
     dir_count = len(docker_compose_dirs)
     for command in commands:
-        logging.info('Running %s in all docker compoes dirs', colored(repr(command), 'green', reverse=True))
+        logging.info('Running %s in all docker compose projects', colored(repr(command), 'green', bold=True))
 
         for dir_index in range(dir_count):
             docker_compose_dir = docker_compose_dirs[dir_index]
             logging.info('Running %s in %s (%d/%d)',
-                         colored(repr(command), 'green', bold=True),
-                         colored(repr(docker_compose_dir), 'green', bold=True),
+                         colored(repr(command), 'green'),
+                         colored(repr(docker_compose_dir), 'green'),
                          dir_index + 1,
                          dir_count
                          )
@@ -149,7 +149,6 @@ def all_run_commands(docker_compose_dirs, commands):
                 continue
 
             os.chdir(docker_compose_dir)
-            print('', file=logging_stream)
             try:
                 subprocess.check_call(command)
             except subprocess.CalledProcessError as e:
@@ -161,7 +160,6 @@ def all_run_commands(docker_compose_dirs, commands):
                 if EXIT_ON_ERROR:
                     print('EXIT_ON_ERROR. Exiting.', file=logging_stream)
                     sys.exit(1)
-            print('', file=logging_stream)
 
 
 def all_restart(docker_compose_dirs):
@@ -177,7 +175,7 @@ def all_restart(docker_compose_dirs):
 
 
 def all_down(docker_compose_dirs):
-    all_run_commands(docker_compose_dirs, [COMMAND_DOWN])
+    all_run_commands(docker_compose_dirs, [COMMAND_STOP, COMMAND_DOWN])
 
 
 def all_build(docker_compose_dirs):
@@ -200,7 +198,7 @@ def all_stop(docker_compose_dirs):
     all_run_commands(docker_compose_dirs, [COMMAND_STOP])
 
 
-def docker_compose_options(args):
+def parse_docker_compose_options(args):
     global COMMAND_DOWN, COMMAND_BUILD, COMMAND_STOP
 
     if args.normi:
@@ -241,10 +239,13 @@ def parse_args():
 
 
 def main():
+    _welcome_str = f'docker-compose-all version {__version__}'
+    print(colored(_welcome_str, 'default', bold=True), file=logging_stream)
+
     _start_time_stamp = time.time()
     
     args = parse_args()
-    docker_compose_options(args)
+    parse_docker_compose_options(args)
 
     docker_files_dir = args.docker_files_dir
     docker_files_dir = os.path.abspath(os.path.expanduser(docker_files_dir))
