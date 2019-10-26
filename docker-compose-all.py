@@ -8,7 +8,7 @@ import logging
 import subprocess
 import argparse
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 YAML_FILENAME = u'docker-compose.yml'
 EXIT_ON_ERROR = False
 
@@ -110,18 +110,6 @@ def scan_dirs(docker_files_dir):
     return docker_compose_dirs
 
 
-def clean():
-    logging.info('Removing all unused image')
-    command = ['docker', 'image', 'prune', '-f']
-    logging.info('Running %s', colored(repr(command), 'green', bold=True))
-    subprocess.call(command)
-
-    logging.info('Removing all unused network')
-    command = ['docker', 'network', 'prune', '-f']
-    logging.info('Running %s', colored(repr(command), 'green', bold=True))
-    subprocess.call(command)
-
-
 # default docker-compose command
 COMMAND_STOP = ['docker-compose', 'stop']
 COMMAND_DOWN = ['docker-compose', 'down', '--rmi', 'all']
@@ -129,6 +117,17 @@ COMMAND_BUILD = ['docker-compose', 'build', '--pull']
 COMMAND_UP = ['docker-compose', 'up', '-d']
 COMMAND_PS = ['docker-compose', 'ps']
 COMMAND_TOP = ['docker-compose', 'top']
+COMMANDS_CLEAN = [
+    ('Removing all unused images', ['docker', 'image', 'prune', '-f']),
+    ('Removing all unused networks', ['docker', 'network', 'prune', '-f']),
+]
+
+
+def clean():
+    for desc, command in COMMANDS_CLEAN:
+        logging.info(desc)
+        logging.info('Running %s', colored(repr(command), 'green', bold=True))
+        subprocess.call(command)
 
 
 errors = []
@@ -201,7 +200,7 @@ def all_stop(docker_compose_dirs):
 
 
 def parse_docker_compose_options(args):
-    global COMMAND_DOWN, COMMAND_BUILD, COMMAND_STOP
+    global COMMAND_DOWN, COMMAND_BUILD, COMMAND_STOP, COMMANDS_CLEAN
 
     if args.normi:
         COMMAND_DOWN = ['docker-compose', 'down']
@@ -211,6 +210,9 @@ def parse_docker_compose_options(args):
 
     if args.dokill:
         COMMAND_STOP = ['docker-compose', 'kill']
+    
+    if not args.normv:
+        COMMANDS_CLEAN.append(('Removing all unused local volumes', ['docker', 'volume', 'prune', '-f']))
 
 
 def parse_args():
@@ -220,9 +222,9 @@ def parse_args():
         add_help=True
     )
     group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--restart',  action="store_true", help="Completely rebuild and rerun all. Including the following steps: stop, down, build, up, ps, and clean up.")
+    group.add_argument('--restart',  action="store_true", help="Completely rebuild and rerun all. Including the following steps: stop, down, build, up, ps. Finally clean up, remove ALL unused images, networks, volumes. WARN: This may cause data loss.")
     group.add_argument('--stop', action="store_true", help="Stop all containers")
-    group.add_argument('--down', action="store_true", help="Make all down. Stop and remove containers, networks")
+    group.add_argument('--down', action="store_true", help="Make all down. Stop and remove containers, networks, images")
     group.add_argument('--build', action="store_true", help="Rebuild all")
     group.add_argument('--up', action="store_true", help="Make all up")
     group.add_argument('--ps', action="store_true", help="Each ps")
@@ -232,6 +234,7 @@ def parse_args():
     dc_opt_group = parser.add_argument_group('docker-compose options')
     dc_opt_group.add_argument('--normi', action='store_true', help='Do NOT remove docker images when running "docker-compose down"')
     dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker-compose build"')
+    dc_opt_group.add_argument('--normv', action='store_true', help='Do NOT remove ALL unused volumes at the end of "--restart".')
     dc_opt_group.add_argument('--dokill', action='store_true', help='Run "docker-compose kill" instead of "docker-compose stop"')
 
     parser.add_argument('docker_files_dir', metavar="DIR", help="A directory which contains docker-compose projects")
