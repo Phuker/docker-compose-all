@@ -8,7 +8,7 @@ import logging
 import subprocess
 import argparse
 
-__version__ = '0.1.3'
+__version__ = '0.1.4'
 YAML_FILENAME = u'docker-compose.yml'
 EXIT_ON_ERROR = False
 
@@ -59,7 +59,7 @@ def check_system():
         try:
             subprocess.check_call(command)
         except Exception as e:
-            logging.error('Error when running %s: %s %s', repr(command), repr(type(e)), repr(str(e)))
+            logging.error('Error when running %s: %r %r', colored(repr(' '.join(command)), 'red', bold=True), type(e), str(e))
             return False
 
     return True
@@ -117,16 +117,19 @@ COMMAND_BUILD = ['docker-compose', 'build', '--pull']
 COMMAND_UP = ['docker-compose', 'up', '-d']
 COMMAND_PS = ['docker-compose', 'ps']
 COMMAND_TOP = ['docker-compose', 'top']
+COMMAND_CLEAN_NETWORKS = ('Removing all unused networks', ['docker', 'network', 'prune', '-f'])
+COMMAND_CLEAN_IMAGES = ('Removing all unused images', ['docker', 'image', 'prune', '-f'])
+COMMAND_CLEAN_VOLUMES = ('Removing all unused local volumes', ['docker', 'volume', 'prune', '-f'])
 COMMANDS_CLEAN = [
-    ('Removing all unused images', ['docker', 'image', 'prune', '-f']),
-    ('Removing all unused networks', ['docker', 'network', 'prune', '-f']),
+    COMMAND_CLEAN_NETWORKS,
 ]
 
 
 def clean():
+    logging.info('Cleanning up')
     for desc, command in COMMANDS_CLEAN:
         logging.info(desc)
-        logging.info('Running %s', colored(repr(command), 'green', bold=True))
+        logging.info('Running %s', colored(repr(' '.join(command)), 'green', bold=True))
         subprocess.call(command)
 
 
@@ -135,12 +138,12 @@ error_dirs = []
 def all_run_commands(docker_compose_dirs, commands):
     dir_count = len(docker_compose_dirs)
     for command in commands:
-        logging.info('Running %s in all docker compose projects', colored(repr(command), 'green', bold=True))
+        logging.info('Running %s in all docker compose projects', colored(repr(' '.join(command)), 'green', bold=True))
 
         for dir_index in range(dir_count):
             docker_compose_dir = docker_compose_dirs[dir_index]
             logging.info('Running %s in %s (%d/%d)',
-                         colored(repr(command), 'green'),
+                         colored(repr(' '.join(command)), 'green'),
                          colored(repr(docker_compose_dir), 'green'),
                          dir_index + 1,
                          dir_count
@@ -154,7 +157,7 @@ def all_run_commands(docker_compose_dirs, commands):
                 subprocess.check_call(command)
             except subprocess.CalledProcessError as e:
                 logging.error(str(e))
-                error_info = '%s %s %s' % (repr(docker_compose_dir), repr(command), repr(str(e)))
+                error_info = 'Dir: %r Command: %r Error: %r, %r' % (docker_compose_dir, ' '.join(command), type(e), str(e))
                 errors.append(error_info)
                 error_dirs.append(docker_compose_dir)
                 logging.error(colored(error_info, 'red', bold=True))
@@ -172,7 +175,6 @@ def all_restart(docker_compose_dirs):
         COMMAND_PS,
     ]
     all_run_commands(docker_compose_dirs, commands)
-    clean()
 
 
 def all_down(docker_compose_dirs):
@@ -212,7 +214,11 @@ def parse_docker_compose_options(args):
         COMMAND_STOP = ['docker-compose', 'kill']
     
     if not args.normv:
-        COMMANDS_CLEAN.append(('Removing all unused local volumes', ['docker', 'volume', 'prune', '-f']))
+        COMMANDS_CLEAN.append(COMMAND_CLEAN_VOLUMES)
+    
+    if not args.normi:
+        COMMANDS_CLEAN.append(COMMAND_CLEAN_IMAGES)
+
 
 
 def parse_args():
@@ -222,7 +228,7 @@ def parse_args():
         add_help=True
     )
     group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--restart',  action="store_true", help="Completely rebuild and rerun all. Including the following steps: stop, down, build, up, ps. Finally clean up, remove ALL unused images, networks, volumes. WARN: This may cause data loss.")
+    group.add_argument('--restart',  action="store_true", help="Completely rebuild and rerun all. Including the following steps: stop, down, build, up, ps.")
     group.add_argument('--stop', action="store_true", help="Stop all containers")
     group.add_argument('--down', action="store_true", help="Make all down. Stop and remove containers, networks, images")
     group.add_argument('--build', action="store_true", help="Rebuild all")
@@ -232,10 +238,11 @@ def parse_args():
     
 
     dc_opt_group = parser.add_argument_group('docker-compose options')
-    dc_opt_group.add_argument('--normi', action='store_true', help='Do NOT remove docker images when running "docker-compose down"')
     dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker-compose build"')
-    dc_opt_group.add_argument('--normv', action='store_true', help='Do NOT remove ALL unused volumes at the end of "--restart".')
     dc_opt_group.add_argument('--dokill', action='store_true', help='Run "docker-compose kill" instead of "docker-compose stop"')
+    dc_opt_group.add_argument('--doclean', action='store_true', help='Clean up before exit, if no error. Remove ALL unused images, networks, volumes. WARN: This may cause data loss.')
+    dc_opt_group.add_argument('--normv', action='store_true', help='Do NOT remove ALL unused volumes when "--doclean"')
+    dc_opt_group.add_argument('--normi', action='store_true', help='Do NOT remove docker images when running "docker-compose down" and "--doclean"')
 
     parser.add_argument('docker_files_dir', metavar="DIR", help="A directory which contains docker-compose projects")
     args = parser.parse_args()
@@ -285,13 +292,16 @@ def main():
         all_stop(docker_compose_dirs)
 
     if len(errors) > 0:
-        logging.info('Commands all run, some error:')
+        logging.info('After run all commands, errors:')
         for error_info in errors:
             logging.error(colored(error_info, 'red', bold=True))
-        logging.info('Time elapsed: %d', time.time() - _start_time_stamp)
+        logging.info('Time elapsed: %.2fs', time.time() - _start_time_stamp)
         logging.info('Command %s exit with some error', colored(repr(' '.join(sys.argv)), 'default', bold=True))
         sys.exit(1)
     else:
+        if args.doclean:
+            clean()
+
         logging.info('Time elapsed: %.2fs', time.time() - _start_time_stamp)
         logging.info('Command %s exit with no error', colored(repr(' '.join(sys.argv)), 'default', bold=True))
 
