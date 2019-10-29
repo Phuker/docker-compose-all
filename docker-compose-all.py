@@ -8,7 +8,7 @@ import logging
 import subprocess
 import argparse
 
-__version__ = '0.1.4'
+__version__ = '0.1.5'
 YAML_FILENAME = u'docker-compose.yml'
 EXIT_ON_ERROR = False
 
@@ -122,6 +122,7 @@ COMMAND_CLEAN_IMAGES = ('Removing all unused images', ['docker', 'image', 'prune
 COMMAND_CLEAN_VOLUMES = ('Removing all unused local volumes', ['docker', 'volume', 'prune', '-f'])
 COMMANDS_CLEAN = [
     COMMAND_CLEAN_NETWORKS,
+    COMMAND_CLEAN_IMAGES,
 ]
 
 
@@ -215,10 +216,6 @@ def parse_docker_compose_options(args):
     
     if not args.normv:
         COMMANDS_CLEAN.append(COMMAND_CLEAN_VOLUMES)
-    
-    if not args.normi:
-        COMMANDS_CLEAN.append(COMMAND_CLEAN_IMAGES)
-
 
 
 def parse_args():
@@ -238,11 +235,11 @@ def parse_args():
     
 
     dc_opt_group = parser.add_argument_group('docker-compose options')
-    dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker-compose build"')
     dc_opt_group.add_argument('--dokill', action='store_true', help='Run "docker-compose kill" instead of "docker-compose stop"')
+    dc_opt_group.add_argument('--normi', action='store_true', help='Do NOT remove docker images when running "docker-compose down"')
+    dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker-compose build"')
     dc_opt_group.add_argument('--doclean', action='store_true', help='Clean up before exit, if no error. Remove ALL unused images, networks, volumes. WARN: This may cause data loss.')
     dc_opt_group.add_argument('--normv', action='store_true', help='Do NOT remove ALL unused volumes when "--doclean"')
-    dc_opt_group.add_argument('--normi', action='store_true', help='Do NOT remove docker images when running "docker-compose down" and "--doclean"')
 
     parser.add_argument('docker_files_dir', metavar="DIR", help="A directory which contains docker-compose projects")
     args = parser.parse_args()
