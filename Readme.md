@@ -12,13 +12,14 @@ A very simple docker cluster management tool. Control all docker compose project
 
 ## Usage
 
-```
-# ./docker-compose-all.py --help
-docker-compose-all version 0.1.0
-usage: docker-compose-all.py [-h]
-                             [--restart | --stop | --down | --build | --up | --ps | --top]
-                             [--normi] [--nopull] [--dokill]
-                             DIR
+```console
+# docker-compose-all --help
+docker-compose-all version 0.1.5
+usage: docker-compose-all [-h]
+                          [--restart | --stop | --down | --build | --up | --ps | --top]
+                          [--dokill] [--normi] [--nopull] [--doclean]
+                          [--normv]
+                          DIR
 
 A very simple docker cluster management tool. Control all docker compose
 projects in a directory.
@@ -29,18 +30,21 @@ positional arguments:
 optional arguments:
   -h, --help  show this help message and exit
   --restart   Completely rebuild and rerun all. Including the following steps:
-              stop, down, build, up, ps, and clean up.
+              stop, down, build, up, ps.
   --stop      Stop all containers
-  --down      Make all down. Stop and remove containers, networks
+  --down      Make all down. Stop and remove containers, networks, images
   --build     Rebuild all
   --up        Make all up
   --ps        Each ps
   --top       List all process
 
 docker-compose options:
+  --dokill    Run "docker-compose kill" instead of "docker-compose stop"
   --normi     Do NOT remove docker images when running "docker-compose down"
   --nopull    Do NOT pull images when running "docker-compose build"
-  --dokill    Run "docker-compose kill" instead of "docker-compose stop"
+  --doclean   Clean up before exit, if no error. Remove ALL unused images,
+              networks, volumes. WARN: This may cause data loss.
+  --normv     Do NOT remove ALL unused volumes when "--doclean"
 
 https://github.com/Phuker
 ```
@@ -56,5 +60,5 @@ cat docker-compose-all.py
 
 ## License
 
-this repo is licensed under the **GNU General Public License v3.0**
+This repo is licensed under the **GNU General Public License v3.0**
 
