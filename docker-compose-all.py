@@ -8,7 +8,7 @@ import logging
 import subprocess
 import argparse
 
-__version__ = '0.1.5'
+__version__ = '0.1.6'
 YAML_FILENAME = u'docker-compose.yml'
 EXIT_ON_ERROR = False
 
@@ -292,6 +292,10 @@ def main():
         logging.info('After run all commands, errors:')
         for error_info in errors:
             logging.error(colored(error_info, 'red', bold=True))
+        
+        if args.doclean:
+            logging.warning('Skip clean because error happened')
+        
         logging.info('Time elapsed: %.2fs', time.time() - _start_time_stamp)
         logging.info('Command %s exit with some error', colored(repr(' '.join(sys.argv)), 'default', bold=True))
         sys.exit(1)
