@@ -8,7 +8,8 @@ import logging
 import subprocess
 import argparse
 
-__version__ = '0.1.6'
+
+__version__ = '0.1.7'
 YAML_FILENAME = u'docker-compose.yml'
 EXIT_ON_ERROR = False
 
@@ -39,13 +40,6 @@ logging.addLevelName(logging.ERROR, '\033[31m{}\033[39m'.format(logging.getLevel
 logging.addLevelName(logging.WARNING, '\033[33m{}\033[39m'.format(logging.getLevelName(logging.WARNING)))
 logging.addLevelName(logging.INFO, '\033[36m{}\033[39m'.format(logging.getLevelName(logging.INFO)))
 logging.addLevelName(logging.DEBUG, '\033[36m{}\033[39m'.format(logging.getLevelName(logging.DEBUG)))
-
-# run as root
-if not os.getuid() == 0:
-    logging.critical('Need root privilege.')
-    sys.exit(1)
-else:
-    logging.debug('Running as root.')
 
 
 def check_system():
@@ -220,7 +214,7 @@ def parse_docker_compose_options(args):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='A very simple docker cluster management tool. Control all docker compose projects in a directory.',
+        description='A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory.',
         epilog='https://github.com/Phuker',
         add_help=True
     )
@@ -252,9 +246,16 @@ def main():
     print(colored(_welcome_str, 'default', bold=True), file=logging_stream)
 
     _start_time_stamp = time.time()
-    
+
     args = parse_args()
     parse_docker_compose_options(args)
+
+    # Run as root, after argparse (could show help)
+    if not os.getuid() == 0:
+        logging.critical('Need root privilege.')
+        sys.exit(1)
+    else:
+        logging.debug('Running as root.')
 
     docker_files_dir = args.docker_files_dir
     docker_files_dir = os.path.abspath(os.path.expanduser(docker_files_dir))
