@@ -15,7 +15,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author='Phuker',
-    # author_email='',
+    author_email='Phuker@users.noreply.github.com',
     url='https://github.com/Phuker/docker-compose-all',
     license='GNU General Public License v3.0',
     packages=[],

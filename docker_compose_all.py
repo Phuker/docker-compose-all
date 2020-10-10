@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 
+"""
+A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory.
+
+https://github.com/Phuker/docker-compose-all
+"""
+
 import sys
 import os
 import time
