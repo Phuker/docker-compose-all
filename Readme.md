@@ -26,7 +26,7 @@ usage: docker_compose_all.py [-h] [--restart | --stop | --down | --build | --up 
 A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory.
 
 positional arguments:
-    DIR         A directory which contains docker-compose projects
+    DIR         A directory which contains Docker Compose projects
 
 optional arguments:
     -h, --help  show this help message and exit
@@ -40,7 +40,7 @@ optional arguments:
 
 docker-compose options:
     --dokill    Run "docker-compose kill" instead of "docker-compose stop"
-    --normi     Do NOT remove docker images when running "docker-compose down"
+    --normi     Do NOT remove Docker images when running "docker-compose down"
     --nopull    Do NOT pull images when running "docker-compose build"
     --doclean   Clean up before exit, if no error. Remove ALL unused images, networks, volumes. WARN: This may cause data loss.
     --normv     Do NOT remove ALL unused volumes when "--doclean"
