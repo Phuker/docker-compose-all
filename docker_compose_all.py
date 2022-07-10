@@ -15,8 +15,8 @@ import subprocess
 import argparse
 
 
-__version__ = '0.1.7'
-YAML_FILENAME = u'docker-compose.yml'
+__version__ = '0.1.8'
+YAML_FILENAME = 'docker-compose.yml'
 EXIT_ON_ERROR = False
 
 
@@ -32,7 +32,7 @@ if logging_stream.isatty():
     logging_date_format = '%H:%M:%S'
 else:
     print('', file=logging_stream)
-    logging_date_format = '%Y-%m-%d %H:%M:%S'
+    logging_date_format = '%Y-%m-%d %H:%M:%S %z'
 
 logging.basicConfig(
     level=logging_level,
