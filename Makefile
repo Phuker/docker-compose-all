@@ -6,7 +6,6 @@ default:
 	make rebuild
 	make install
 	make clean
-	make test
 
 reinstall:
 	make uninstall

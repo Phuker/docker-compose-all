@@ -24,7 +24,7 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'docker-compose-all=docker_compose_all:main'
+            'docker-compose-all=docker_compose_all:_main'
         ]
     },
     classifiers=[
