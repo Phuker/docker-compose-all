@@ -3,17 +3,15 @@
 
 from setuptools import setup
 
-import docker_compose_all
 
 with open('Readme.PyPI.md', 'r') as f:
     long_description = f.read()
 
 setup(
     name='docker-compose-all',
-    version=docker_compose_all.__version__,
     description='A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory.',
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type='text/markdown',
     author='Phuker',
     author_email='Phuker@users.noreply.github.com',
     url='https://github.com/Phuker/docker-compose-all',
