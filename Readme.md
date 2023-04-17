@@ -20,14 +20,14 @@ python3 -m pip install -U docker-compose-all
 
 ```console
 # docker-compose-all --help
-usage: docker_compose_all.py [-h] [--restart | --stop | --down | --build | --up | --ps | --top] [--dokill] [--normi] [--nopull] [--doclean] [-v] DIR
+usage: docker-compose-all [-h] [--restart | --stop | --down | --build | --up | --ps | --top] [--dokill] [--normi] [--nopull] [--doclean] [-V] [-v] [dir_path]
 
-docker-compose-all version 0.2.0
+docker-compose-all version 0.2.1
 A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory.
 https://github.com/Phuker/docker-compose-all
 
 positional arguments:
-  DIR            A directory which contains Docker Compose projects
+  dir_path       A directory which contains Docker Compose projects, default: '.'
 
 options:
   -h, --help     show this help message and exit
@@ -38,6 +38,7 @@ options:
   --up           Make all up
   --ps           Each ps
   --top          List all process
+  -V, --version  Show version and exit
   -v, --verbose  Increase verbosity level (use -vv or more for greater effect)
 
 docker-compose options:

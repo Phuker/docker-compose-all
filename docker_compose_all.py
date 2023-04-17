@@ -17,7 +17,7 @@ import shlex
 from datetime import timedelta
 
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 logger = logging.getLogger(__name__)
 shell_args = None
 
