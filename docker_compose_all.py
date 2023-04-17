@@ -17,6 +17,13 @@ import shlex
 from datetime import timedelta
 
 
+__version__ = '0.2.0'
+logger = logging.getLogger(__name__)
+shell_args = None
+
+VERSION_STR_SHORT = f'docker-compose-all version {__version__}'
+VERSION_STR_LONG = f'docker-compose-all version {__version__}\n{__doc__.strip()}'
+
 # https://docs.docker.com/compose/compose-file/03-compose-file/
 DOCKER_COMPOSE_FILENAME_SET = {
     'compose.yaml',
@@ -40,10 +47,6 @@ COMMANDS_CLEAN = [
     COMMAND_CLEAN_IMAGES,
     COMMAND_CLEAN_BUILDER,
 ]
-
-__version__ = '0.2.0'
-logger = logging.getLogger(__name__)
-shell_args = None
 
 
 def _assert(expr, msg=''):
@@ -78,20 +81,22 @@ def _init_logging():
 def _parse_args():
     global shell_args
 
+    default_docker_files_dir = '.'
+
     parser = argparse.ArgumentParser(
-        description=f'docker-compose-all version {__version__}\n{__doc__.strip()}',
+        description=VERSION_STR_LONG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         add_help=True
     )
 
     group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--restart',  action="store_true", help="Completely rebuild and rerun all. Including the following steps: stop, down, build, up, ps.")
-    group.add_argument('--stop', action="store_true", help="Stop all containers")
-    group.add_argument('--down', action="store_true", help="Make all down. Stop and remove containers, networks, images")
-    group.add_argument('--build', action="store_true", help="Rebuild all")
-    group.add_argument('--up', action="store_true", help="Make all up")
-    group.add_argument('--ps', action="store_true", help="Each ps")
-    group.add_argument('--top', action="store_true", help="List all process")
+    group.add_argument('--restart', action='store_true', help='Completely rebuild and rerun all. Including the following steps: stop, down, build, up, ps.')
+    group.add_argument('--stop', action='store_true', help='Stop all containers')
+    group.add_argument('--down', action='store_true', help='Make all down. Stop and remove containers, networks, images')
+    group.add_argument('--build', action='store_true', help='Rebuild all')
+    group.add_argument('--up', action='store_true', help='Make all up')
+    group.add_argument('--ps', action='store_true', help='Each ps')
+    group.add_argument('--top', action='store_true', help='List all process')
 
     dc_opt_group = parser.add_argument_group('docker-compose options')
     dc_opt_group.add_argument('--dokill', action='store_true', help='Run "docker-compose kill" instead of "docker-compose stop"')
@@ -99,7 +104,9 @@ def _parse_args():
     dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker-compose build"')
     dc_opt_group.add_argument('--doclean', action='store_true', help='Clean up before exit, if no error. Remove ALL unused networks, images and build cache. WARN: This may cause data loss.')
 
-    parser.add_argument('docker_files_dir', metavar="DIR", help="A directory which contains Docker Compose projects")
+    parser.add_argument('docker_files_dir', metavar='dir_path', nargs='?', default=default_docker_files_dir, help=f'A directory which contains Docker Compose projects, default: {default_docker_files_dir!r}')
+
+    parser.add_argument('-V', '--version', action='store_true', help='Show version and exit')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity level (use -vv or more for greater effect)')
 
     shell_args = parser.parse_args()
@@ -111,6 +118,10 @@ def _parse_args():
     _assert(os.path.isdir(shell_args.docker_files_dir), f'Dir not found: {shell_args.docker_files_dir!r}')
 
     logger.debug('Command line arguments: %r', shell_args)
+
+    if shell_args.version:
+        print(VERSION_STR_LONG)
+        sys.exit(0)
 
 
 def colored(s, foreground, background=None, **kwargs):
@@ -274,7 +285,7 @@ def main():
     _start_time_stamp = time.time()
     atexit.register(lambda: logger.info('Time elapsed: %s', timedelta(seconds=int(time.time() - _start_time_stamp))))
 
-    logger.info(colored('docker-compose-all version %s', 'default', bold=True), __version__)
+    logger.info(colored(VERSION_STR_SHORT, 'default', bold=True))
 
     update_docker_compose_commands()
 
