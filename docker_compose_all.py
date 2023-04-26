@@ -18,11 +18,8 @@ from datetime import timedelta
 
 
 __version__ = '0.2.1'
-logger = logging.getLogger(__name__)
-shell_args = None
-
-VERSION_STR_SHORT = f'docker-compose-all version {__version__}'
-VERSION_STR_LONG = f'docker-compose-all version {__version__}\n{__doc__.strip()}'
+VERSION_STR_SHORT = f'docker-compose-all {__version__}'
+VERSION_STR_LONG = f'docker-compose-all {__version__}\n{__doc__.strip()}'
 
 # https://docs.docker.com/compose/compose-file/03-compose-file/
 DOCKER_COMPOSE_FILENAME_SET = {
@@ -47,6 +44,9 @@ COMMANDS_CLEAN = [
     COMMAND_CLEAN_IMAGES,
     COMMAND_CLEAN_BUILDER,
 ]
+
+logger = logging.getLogger(__name__)
+shell_args = None
 
 
 def _assert(expr, msg=''):
@@ -78,9 +78,7 @@ def _init_logging():
     logging.addLevelName(logging.DEBUG, '\x1b[36m{}\x1b[39m'.format(logging.getLevelName(logging.DEBUG)))
 
 
-def _parse_args():
-    global shell_args
-
+def _parse_args(args=sys.argv[1:]):
     default_docker_files_dir = '.'
 
     parser = argparse.ArgumentParser(
@@ -104,24 +102,22 @@ def _parse_args():
     dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker-compose build"')
     dc_opt_group.add_argument('--doclean', action='store_true', help='Clean up before exit, if no error. Remove ALL unused networks, images and build cache. WARN: This may cause data loss.')
 
-    parser.add_argument('docker_files_dir', metavar='dir_path', nargs='?', default=default_docker_files_dir, help=f'A directory which contains Docker Compose projects, default: {default_docker_files_dir!r}')
+    parser.add_argument('docker_files_dir', metavar='dir_path', nargs='?', default=default_docker_files_dir, help='A directory which contains Docker Compose projects, default: %(default)r')
 
-    parser.add_argument('-V', '--version', action='store_true', help='Show version and exit')
+    parser.add_argument('-V', '--version', action='version', version=VERSION_STR_LONG, help='Show version and exit')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity level (use -vv or more for greater effect)')
 
-    shell_args = parser.parse_args()
+    result = parser.parse_args(args)
 
-    if shell_args.verbose >= 1:
+    if result.verbose >= 1:
         logging.root.setLevel(logging.DEBUG)
     
-    shell_args.docker_files_dir = os.path.abspath(os.path.expanduser(shell_args.docker_files_dir))
-    _assert(os.path.isdir(shell_args.docker_files_dir), f'Dir not found: {shell_args.docker_files_dir!r}')
+    result.docker_files_dir = os.path.abspath(os.path.expanduser(result.docker_files_dir))
+    _assert(os.path.isdir(result.docker_files_dir), f'Dir not found: {result.docker_files_dir!r}')
 
-    logger.debug('Command line arguments: %r', shell_args)
+    logger.debug('Command line arguments: %r', result)
 
-    if shell_args.version:
-        print(VERSION_STR_LONG)
-        sys.exit(0)
+    return result
 
 
 def colored(s, foreground, background=None, **kwargs):
@@ -277,6 +273,11 @@ def update_docker_compose_commands():
 
 
 def main():
+    global shell_args
+
+    _init_logging()
+    shell_args = _parse_args()
+
     if sys.stdout.isatty():
         atexit.register(lambda: logger.info('Exiting'))
     else:
@@ -334,16 +335,5 @@ def main():
         logger.info('Command %s exit with no error', colored(get_command_str(sys.argv), 'default', bold=True))
 
 
-def _main():
-    _init_logging()
-    _parse_args()
-
-    try:
-        main()
-    except Exception as e:
-        logger.exception('%r: %r', type(e), e)
-        sys.exit(1)
-
-
 if __name__ == '__main__':
-    _main()
+    main()
