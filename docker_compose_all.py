@@ -17,7 +17,7 @@ import shlex
 from datetime import timedelta
 
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 VERSION_STR_SHORT = f'docker-compose-all {__version__}'
 VERSION_STR_LONG = f'docker-compose-all {__version__}\n{__doc__.strip()}'
 
