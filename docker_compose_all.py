@@ -29,13 +29,13 @@ DOCKER_COMPOSE_FILENAME_SET = {
     'docker-compose.yml',
 }
 
-# default docker-compose command
-COMMAND_STOP = ['docker-compose', 'stop']
-COMMAND_DOWN = ['docker-compose', 'down', '--rmi', 'all']
-COMMAND_BUILD = ['docker-compose', 'build', '--pull']
-COMMAND_UP = ['docker-compose', 'up', '-d']
-COMMAND_PS = ['docker-compose', 'ps']
-COMMAND_TOP = ['docker-compose', 'top']
+# default docker compose command
+COMMAND_STOP = ['docker', 'compose', 'stop']
+COMMAND_DOWN = ['docker', 'compose', 'down', '--rmi', 'all']
+COMMAND_BUILD = ['docker', 'compose', '--progress', 'plain', 'build', '--pull', '--no-cache']
+COMMAND_UP = ['docker', 'compose', 'up', '-d']
+COMMAND_PS = ['docker', 'compose', 'ps']
+COMMAND_TOP = ['docker', 'compose', 'top']
 COMMAND_CLEAN_NETWORKS = ('Removing all unused networks', ['docker', 'network', 'prune', '-f'])
 COMMAND_CLEAN_IMAGES = ('Remove unused images', ['docker', 'image', 'prune', '-f'])
 COMMAND_CLEAN_BUILDER = ('Remove build cache', ['docker', 'builder', 'prune', '-f'])
@@ -96,10 +96,10 @@ def _parse_args(args=sys.argv[1:]):
     group.add_argument('--ps', action='store_true', help='Each ps')
     group.add_argument('--top', action='store_true', help='List all process')
 
-    dc_opt_group = parser.add_argument_group('docker-compose options')
-    dc_opt_group.add_argument('--dokill', action='store_true', help='Run "docker-compose kill" instead of "docker-compose stop"')
-    dc_opt_group.add_argument('--normi', action='store_true', help='Do NOT remove Docker images when running "docker-compose down"')
-    dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker-compose build"')
+    dc_opt_group = parser.add_argument_group('docker compose options')
+    dc_opt_group.add_argument('--dokill', action='store_true', help='Run "docker compose kill" instead of "docker compose stop"')
+    dc_opt_group.add_argument('--normi', action='store_true', help='Do NOT remove Docker images when running "docker compose down"')
+    dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker compose build"')
     dc_opt_group.add_argument('--doclean', action='store_true', help='Clean up before exit, if no error. Remove ALL unused networks, images and build cache. WARN: This may cause data loss.')
 
     parser.add_argument('docker_files_dir', metavar='dir_path', nargs='?', default=default_docker_files_dir, help='A directory which contains Docker Compose projects, default: %(default)r')
@@ -163,7 +163,7 @@ def check_system():
     logger.info('Checking Docker & Docker Compose installation')
     commands = [
         ['docker', '--version'],
-        ['docker-compose', '--version'],
+        ['docker', 'compose', 'version'],
     ]
 
     for command in commands:
@@ -263,13 +263,13 @@ def update_docker_compose_commands():
     global COMMAND_DOWN, COMMAND_BUILD, COMMAND_STOP
 
     if shell_args.normi:
-        COMMAND_DOWN = ['docker-compose', 'down']
+        COMMAND_DOWN = ['docker', 'compose', 'down']
 
     if shell_args.nopull:
-        COMMAND_BUILD = ['docker-compose', 'build']
+        COMMAND_BUILD = ['docker', 'compose', '--progress', 'plain', 'build']
 
     if shell_args.dokill:
-        COMMAND_STOP = ['docker-compose', 'kill']
+        COMMAND_STOP = ['docker', 'compose', 'kill']
 
 
 def main():
