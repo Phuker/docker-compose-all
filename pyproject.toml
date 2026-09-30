@@ -1,0 +1,33 @@
+[project]
+name = "docker-compose-all"
+dynamic = ["version"]
+description = "A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory."
+readme = "Readme.md"
+requires-python = ">=3.8"
+license = "GPL-3.0-only"
+authors = [
+    { name = "Phuker", email = "Phuker@users.noreply.github.com" },
+]
+dependencies = []
+classifiers = [
+    "Environment :: Console",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+Source = "https://github.com/Phuker/docker-compose-all"
+
+[project.scripts]
+docker-compose-all = "docker_compose_all.docker_compose_all:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "docker_compose_all.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["docker_compose_all*"]
