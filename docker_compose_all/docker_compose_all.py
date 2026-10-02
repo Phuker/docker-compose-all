@@ -50,20 +50,16 @@ logger = logging.getLogger(__name__)
 shell_args = None
 
 
-def _assert(expr, msg=''):
+def assert_(expr, msg=''):
     if not expr:
         raise AssertionError(msg)
 
 
-def _init_logging():
+def init_logging():
     logging_stream = sys.stdout
     logging_format = '\x1b[1m%(asctime)s [%(levelname)s]:\x1b[0m%(message)s'
     logging_level = logging.INFO
-
-    if logging_stream.isatty():
-        logging_date_format = '%H:%M:%S'
-    else:
-        logging_date_format = '%Y-%m-%d %H:%M:%S %z'
+    logging_date_format = '%Y-%m-%d %H:%M:%S %z'
 
     logging.basicConfig(
         level=logging_level,
@@ -72,20 +68,20 @@ def _init_logging():
         stream=logging_stream,
     )
 
-    logging.addLevelName(logging.CRITICAL, '\x1b[31m{}\x1b[39m'.format(logging.getLevelName(logging.CRITICAL)))
-    logging.addLevelName(logging.ERROR, '\x1b[31m{}\x1b[39m'.format(logging.getLevelName(logging.ERROR)))
-    logging.addLevelName(logging.WARNING, '\x1b[33m{}\x1b[39m'.format(logging.getLevelName(logging.WARNING)))
-    logging.addLevelName(logging.INFO, '\x1b[36m{}\x1b[39m'.format(logging.getLevelName(logging.INFO)))
-    logging.addLevelName(logging.DEBUG, '\x1b[36m{}\x1b[39m'.format(logging.getLevelName(logging.DEBUG)))
+    logging.addLevelName(logging.CRITICAL, f'\x1b[31m{logging.getLevelName(logging.CRITICAL)}\x1b[39m')
+    logging.addLevelName(logging.ERROR, f'\x1b[31m{logging.getLevelName(logging.ERROR)}\x1b[39m')
+    logging.addLevelName(logging.WARNING, f'\x1b[33m{logging.getLevelName(logging.WARNING)}\x1b[39m')
+    logging.addLevelName(logging.INFO, f'\x1b[36m{logging.getLevelName(logging.INFO)}\x1b[39m')
+    logging.addLevelName(logging.DEBUG, f'\x1b[36m{logging.getLevelName(logging.DEBUG)}\x1b[39m')
 
 
-def _parse_args(args=sys.argv[1:]):
+def parse_args(args=None):
     default_docker_files_dir = '.'
 
     parser = argparse.ArgumentParser(
         description=VERSION_STR_LONG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        add_help=True
+        add_help=True,
     )
 
     group = parser.add_mutually_exclusive_group(required=False)
@@ -106,7 +102,7 @@ def _parse_args(args=sys.argv[1:]):
     parser.add_argument('docker_files_dir', metavar='dir_path', nargs='?', default=default_docker_files_dir, help='A directory which contains Docker Compose projects, default: %(default)r')
 
     parser.add_argument('-V', '--version', action='version', version=VERSION_STR_LONG, help='Show version and exit')
-    parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity level (use -vv or more for greater effect)')
+    parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity level')
 
     result = parser.parse_args(args)
 
@@ -114,7 +110,7 @@ def _parse_args(args=sys.argv[1:]):
         logging.root.setLevel(logging.DEBUG)
     
     result.docker_files_dir = os.path.abspath(os.path.expanduser(result.docker_files_dir))
-    _assert(os.path.isdir(result.docker_files_dir), f'Dir not found: {result.docker_files_dir!r}')
+    assert_(os.path.isdir(result.docker_files_dir), f'Dir not found: {result.docker_files_dir!r}')
 
     logger.debug('Command line arguments: %r', result)
 
@@ -276,8 +272,8 @@ def update_docker_compose_commands():
 def main():
     global shell_args
 
-    _init_logging()
-    shell_args = _parse_args()
+    init_logging()
+    shell_args = parse_args()
 
     if sys.stdout.isatty():
         atexit.register(lambda: logger.info('Exiting'))
