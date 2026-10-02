@@ -287,12 +287,8 @@ def main():
 
     update_docker_compose_commands()
 
-    # Run as root, after argparse (could show help)
     if not os.getuid() == 0:
-        logger.critical('Need root privilege')
-        sys.exit(1)
-    else:
-        logger.debug('Running as root')
+        logger.warning('Not running as root')
 
     if not check_system():
         logger.error(colored('Docker & Docker Compose installation incomplete', 'red', bold=True))
