@@ -14,6 +14,7 @@ import atexit
 import time
 import subprocess
 import shlex
+from types import SimpleNamespace
 from datetime import timedelta
 
 from . import __version__
@@ -30,13 +31,6 @@ DOCKER_COMPOSE_FILENAME_SET = {
     'docker-compose.yml',
 }
 
-# default docker compose command
-COMMAND_STOP = ['docker', 'compose', 'stop']
-COMMAND_DOWN = ['docker', 'compose', 'down', '--rmi', 'all']
-COMMAND_BUILD = ['docker', 'compose', '--progress', 'plain', 'build', '--pull', '--no-cache']
-COMMAND_UP = ['docker', 'compose', 'up', '-d']
-COMMAND_PS = ['docker', 'compose', 'ps']
-COMMAND_TOP = ['docker', 'compose', 'top']
 COMMAND_CLEAN_NETWORKS = ('Removing all unused networks', ['docker', 'network', 'prune', '-f'])
 COMMAND_CLEAN_IMAGES = ('Remove unused images', ['docker', 'image', 'prune', '-f'])
 COMMAND_CLEAN_BUILDER = ('Remove build cache', ['docker', 'builder', 'prune', '-f'])
@@ -45,6 +39,12 @@ COMMANDS_CLEAN = [
     COMMAND_CLEAN_IMAGES,
     COMMAND_CLEAN_BUILDER,
 ]
+
+DOCKER_COMPOSE_PREFIX = ['docker', 'compose']
+COMMAND_SEPARATORS = (';', '&&', '||')
+
+SCAN_DIR_ENV_NAME = 'DOCKER_COMPOSE_ALL_SCAN_DIR'
+DEFAULT_SCAN_DIR = '.'
 
 logger = logging.getLogger(__name__)
 shell_args = None
@@ -76,45 +76,77 @@ def init_logging():
 
 
 def parse_args(args=None):
-    default_docker_files_dir = '.'
+    if args is None:
+        args = sys.argv[1:]
 
     parser = argparse.ArgumentParser(
+        prog='docker-compose-all',
+        usage='%(prog)s [DOCKER_COMPOSE_ARGS] [(";" | "&&" | "||") DOCKER_COMPOSE_ARGS] ...',
         description=VERSION_STR_LONG,
+        epilog=f'''Run "docker compose <DOCKER_COMPOSE_ARGS>" in every Docker Compose project found
+in the scan directory. All arguments are passed through to "docker compose" as-is,
+so any "docker compose" option and command can be used.
+
+Multiple commands can be chained with the separators ';', '&&' and '||' (quote
+them to protect them from the shell). The conditionals are evaluated for each
+project independently, using the exit status of that project's previous command.
+
+Environment variables:
+  DOCKER_COMPOSE_ALL_SCAN_DIR  Directory to scan for Docker Compose projects, default: {DEFAULT_SCAN_DIR!r}
+
+Examples:
+  docker-compose-all up -d
+  docker-compose-all -f compose.yaml up -d
+  docker-compose-all --progress plain build --pull '&&' up -d''',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        add_help=True,
+        add_help=False,
     )
 
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--restart', action='store_true', help='Completely rebuild and rerun all. Including the following steps: stop, down, build, up, ps.')
-    group.add_argument('--stop', action='store_true', help='Stop all containers')
-    group.add_argument('--down', action='store_true', help='Make all down. Stop and remove containers, networks, images')
-    group.add_argument('--build', action='store_true', help='Rebuild all')
-    group.add_argument('--up', action='store_true', help='Make all up')
-    group.add_argument('--ps', action='store_true', help='Each ps')
-    group.add_argument('--top', action='store_true', help='List all process')
+    parser.add_argument('-h', '--help', action='store_true', help='Show this help message and exit')
+    parser.add_argument('-V', '--version', action='store_true', help='Show version and exit')
 
-    dc_opt_group = parser.add_argument_group('docker compose options')
-    dc_opt_group.add_argument('--dokill', action='store_true', help='Run "docker compose kill" instead of "docker compose stop"')
-    dc_opt_group.add_argument('--normi', action='store_true', help='Do NOT remove Docker images when running "docker compose down"')
-    dc_opt_group.add_argument('--nopull', action='store_true', help='Do NOT pull images when running "docker compose build"')
-    dc_opt_group.add_argument('--doclean', action='store_true', help='Clean up before exit, if no error. Remove ALL unused networks, images and build cache. WARN: This may cause data loss.')
+    parsed_args, unknown_args = parser.parse_known_args(args)
 
-    parser.add_argument('docker_files_dir', metavar='dir_path', nargs='?', default=default_docker_files_dir, help='A directory which contains Docker Compose projects, default: %(default)r')
+    if len(args) == 1 and not unknown_args and parsed_args.help:
+        parser.print_help()
+        sys.exit(0)
 
-    parser.add_argument('-V', '--version', action='version', version=VERSION_STR_LONG, help='Show version and exit')
-    parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity level')
+    if not args or (len(args) == 1 and not unknown_args and parsed_args.version):
+        print(VERSION_STR_LONG)
+        sys.exit(0)
 
-    result = parser.parse_args(args)
+    command_chain = parse_command_chain(args)
 
-    if result.verbose >= 1:
-        logging.root.setLevel(logging.DEBUG)
-    
-    result.docker_files_dir = os.path.abspath(os.path.expanduser(result.docker_files_dir))
-    assert_(os.path.isdir(result.docker_files_dir), f'Dir not found: {result.docker_files_dir!r}')
+    scan_dir = os.environ.get(SCAN_DIR_ENV_NAME, DEFAULT_SCAN_DIR)
+    scan_dir = os.path.abspath(os.path.expanduser(scan_dir))
+    assert_(os.path.isdir(scan_dir), f'Dir not found: {scan_dir!r}')
 
-    logger.debug('Command line arguments: %r', result)
+    result = SimpleNamespace(command_chain=command_chain, scan_dir=scan_dir)
 
     return result
+
+
+def parse_command_chain(args):
+    """Split raw command line arguments into a chain of (operator, docker_compose_args) pairs"""
+
+    command_chain = []
+    operator = None
+    docker_compose_args = []
+
+    for arg in args:
+        if arg in COMMAND_SEPARATORS:
+            assert_(docker_compose_args, f'Missing command before operator {arg!r}')
+
+            command_chain.append((operator, docker_compose_args))
+            operator = arg
+            docker_compose_args = []
+        else:
+            docker_compose_args.append(arg)
+
+    assert_(docker_compose_args, 'Missing command after operator')
+
+    command_chain.append((operator, docker_compose_args))
+    return command_chain
 
 
 def colored(s, foreground, background=None, **kwargs):
@@ -156,6 +188,18 @@ def get_command_str(command):
     return ' '.join(shlex.quote(_) for _ in command)
 
 
+def get_command_chain_str(command_chain):
+    parts = []
+
+    for operator, docker_compose_args in command_chain:
+        if operator:
+            parts.append(operator)
+
+        parts.append(get_command_str(DOCKER_COMPOSE_PREFIX + docker_compose_args))
+
+    return ' '.join(parts)
+
+
 def check_system():
     logger.info('Checking Docker & Docker Compose installation')
     commands = [
@@ -189,7 +233,7 @@ def scan_dirs(dir_path):
     return docker_compose_dirs
 
 
-def clean():
+def cleanup():
     logger.info('Cleanning up')
     for desc, command in COMMANDS_CLEAN:
         logger.info(desc)
@@ -198,75 +242,48 @@ def clean():
 
 
 error_info_list = []
-def all_run_commands(docker_compose_dirs, commands):
-    error_dirs = []
+def all_run_commands(docker_compose_dirs, command_chain):
+    logger.info('Running %s in all Docker Compose projects', colored(get_command_chain_str(command_chain), 'green', bold=True))
 
-    for command in commands:
-        logger.info('Running %s in all Docker Compose projects', colored(get_command_str(command), 'green', bold=True))
+    for i, dir_path in enumerate(docker_compose_dirs):
+        logger.info('Running in %s (%d/%d)', colored(dir_path, 'green', repr=True), i + 1, len(docker_compose_dirs))
 
-        for i, dir_path in enumerate(docker_compose_dirs):
-            logger.info('Running %s in %s (%d/%d)', colored(get_command_str(command), 'green'), colored(dir_path, 'green', repr=True), i + 1, len(docker_compose_dirs))
-            if dir_path in error_dirs:
-                logger.warning('Skiped because error happened')
-                continue
+        os.chdir(dir_path)
+        status = run_command_chain(command_chain)
 
-            os.chdir(dir_path)
-            try:
-                subprocess.check_call(command)
-            except subprocess.CalledProcessError as e:
-                error_info = 'Dir: %r, Command: %s, Error: %r: %r' % (dir_path, get_command_str(command), type(e), e)
-                logger.error(colored(error_info, 'red', bold=True))
-
-                error_info_list.append(error_info)
-                error_dirs.append(dir_path)
+        if status != 0:
+            error_info = 'Dir: %r, Command chain: %s, Exit status: %d' % (dir_path, get_command_chain_str(command_chain), status)
+            logger.error(colored(error_info, 'red', bold=True))
+            error_info_list.append(error_info)
 
 
-def all_restart(docker_compose_dirs):
-    commands = [
-        COMMAND_STOP,
-        COMMAND_DOWN,
-        COMMAND_BUILD,
-        COMMAND_UP,
-        COMMAND_PS,
-    ]
-    all_run_commands(docker_compose_dirs, commands)
+def run_command_chain(command_chain):
+    """Run a command chain in the current directory, return the exit status of the last executed command"""
 
+    prev_status = 0
 
-def all_down(docker_compose_dirs):
-    all_run_commands(docker_compose_dirs, [COMMAND_STOP, COMMAND_DOWN])
+    for operator, docker_compose_args in command_chain:
+        if operator == '&&':
+            should_run = (prev_status == 0)
+        elif operator == '||':
+            should_run = (prev_status != 0)
+        else:
+            should_run = True
 
+        if not should_run:
+            continue
 
-def all_build(docker_compose_dirs):
-    all_run_commands(docker_compose_dirs, [COMMAND_BUILD])
+        command = DOCKER_COMPOSE_PREFIX + docker_compose_args
+        logger.info('Running %s', colored(get_command_str(command), 'green', bold=True))
 
+        try:
+            subprocess.check_call(command)
+        except subprocess.CalledProcessError as e:
+            prev_status = e.returncode
+        else:
+            prev_status = 0
 
-def all_up(docker_compose_dirs):
-    all_run_commands(docker_compose_dirs, [COMMAND_UP])
-
-
-def all_ps(docker_compose_dirs):
-    all_run_commands(docker_compose_dirs, [COMMAND_PS])
-
-
-def all_top(docker_compose_dirs):
-    all_run_commands(docker_compose_dirs, [COMMAND_TOP])
-
-
-def all_stop(docker_compose_dirs):
-    all_run_commands(docker_compose_dirs, [COMMAND_STOP])
-
-
-def update_docker_compose_commands():
-    global COMMAND_DOWN, COMMAND_BUILD, COMMAND_STOP
-
-    if shell_args.normi:
-        COMMAND_DOWN = ['docker', 'compose', 'down']
-
-    if shell_args.nopull:
-        COMMAND_BUILD = ['docker', 'compose', '--progress', 'plain', 'build']
-
-    if shell_args.dokill:
-        COMMAND_STOP = ['docker', 'compose', 'kill']
+    return prev_status
 
 
 def main():
@@ -285,8 +302,6 @@ def main():
 
     logger.info(colored(VERSION_STR_SHORT, 'default', bold=True))
 
-    update_docker_compose_commands()
-
     if not os.getuid() == 0:
         logger.warning('Not running as root')
 
@@ -294,38 +309,18 @@ def main():
         logger.error(colored('Docker & Docker Compose installation incomplete', 'red', bold=True))
         sys.exit(1)
 
-    docker_compose_dirs = scan_dirs(shell_args.docker_files_dir)
+    docker_compose_dirs = scan_dirs(shell_args.scan_dir)
+    all_run_commands(docker_compose_dirs, shell_args.command_chain)
 
-    if shell_args.restart:
-        all_restart(docker_compose_dirs)
-    elif shell_args.down:
-        all_down(docker_compose_dirs)
-    elif shell_args.build:
-        all_build(docker_compose_dirs)
-    elif shell_args.up:
-        all_up(docker_compose_dirs)
-    elif shell_args.ps:
-        all_ps(docker_compose_dirs)
-    elif shell_args.top:
-        all_top(docker_compose_dirs)
-    elif shell_args.stop:
-        all_stop(docker_compose_dirs)
-    
     if len(error_info_list) > 0:
         logger.info('After run all commands, errors:')
         for error_info in error_info_list:
             logger.error(colored(error_info, 'red', bold=True))
-        
-        if shell_args.doclean:
-            logger.warning('Skip clean because error happened')
-        
+
         logger.info('Command %s exit with some error', colored(get_command_str(sys.argv), 'default', bold=True))
         sys.exit(1)
-    else:
-        if shell_args.doclean:
-            clean()
 
-        logger.info('Command %s exit with no error', colored(get_command_str(sys.argv), 'default', bold=True))
+    logger.info('Command %s exit with no error', colored(get_command_str(sys.argv), 'default', bold=True))
 
 
 if __name__ == '__main__':
