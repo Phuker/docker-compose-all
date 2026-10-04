@@ -3,7 +3,7 @@ name = "docker-compose-all"
 dynamic = ["version"]
 description = "A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory."
 readme = "Readme.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "GPL-3.0-only"
 authors = [
     { name = "Phuker", email = "Phuker@users.noreply.github.com" },

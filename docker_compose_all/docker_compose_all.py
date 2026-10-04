@@ -19,39 +19,39 @@ from datetime import timedelta
 from . import __version__
 
 
-VERSION_STR_SHORT = f'docker-compose-all {__version__}'
-VERSION_STR_LONG = f'docker-compose-all {__version__}\n{__doc__.strip()}'
+VERSION_STR_SHORT: str = f'docker-compose-all {__version__}'
+VERSION_STR_LONG: str = f'docker-compose-all {__version__}\n{__doc__.strip()}'
 
 # https://docs.docker.com/compose/compose-file/03-compose-file/
-DOCKER_COMPOSE_FILENAME_SET = {
+DOCKER_COMPOSE_FILENAME_SET: set[str] = {
     'compose.yaml',
     'compose.yml',
     'docker-compose.yaml',
     'docker-compose.yml',
 }
 
-COMMAND_CLEANUP_NETWORKS = ('Removing all unused networks', ['docker', 'network', 'prune', '-f'])
-COMMAND_CLEANUP_IMAGES = ('Remove unused images', ['docker', 'image', 'prune', '-f'])
-COMMAND_CLEANUP_BUILDER = ('Remove build cache', ['docker', 'builder', 'prune', '-f'])
-COMMANDS_CLEANUP = [
+COMMAND_CLEANUP_NETWORKS: tuple[str, list[str]] = ('Removing all unused networks', ['docker', 'network', 'prune', '-f'])
+COMMAND_CLEANUP_IMAGES: tuple[str, list[str]] = ('Remove unused images', ['docker', 'image', 'prune', '-f'])
+COMMAND_CLEANUP_BUILDER: tuple[str, list[str]] = ('Remove build cache', ['docker', 'builder', 'prune', '-f'])
+COMMANDS_CLEANUP: list[tuple[str, list[str]]] = [
     COMMAND_CLEANUP_NETWORKS,
     COMMAND_CLEANUP_IMAGES,
     COMMAND_CLEANUP_BUILDER,
 ]
 
-DOCKER_COMPOSE_PREFIX = ['docker', 'compose']
-COMMAND_SEPARATORS = (';', '&&', '||')
+DOCKER_COMPOSE_PREFIX: list[str] = ['docker', 'compose']
+COMMAND_SEPARATORS: tuple[str, ...] = (';', '&&', '||')
 
-logger = logging.getLogger(__name__)
-shell_args = None
+logger: logging.Logger = logging.getLogger(__name__)
+shell_args: argparse.Namespace | None = None
 
 
-def assert_(expr, msg=''):
+def assert_(expr: object, msg: str = '') -> None:
     if not expr:
         raise AssertionError(msg)
 
 
-def init_logging():
+def init_logging() -> None:
     logging_stream = sys.stdout
     logging_format = '\x1b[1m%(asctime)s [%(levelname)s]:\x1b[0m%(message)s'
     logging_level = logging.INFO
@@ -71,7 +71,7 @@ def init_logging():
     logging.addLevelName(logging.DEBUG, f'\x1b[36m{logging.getLevelName(logging.DEBUG)}\x1b[39m')
 
 
-def parse_args(args=None):
+def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     if args is None:
         args = sys.argv[1:]
 
@@ -132,7 +132,7 @@ Examples:
     return result
 
 
-def parse_command_chain(args):
+def parse_command_chain(args: list[str]) -> list[tuple[str | None, list[str]]]:
     """Split raw command line arguments into a chain of (operator, docker_compose_args) pairs"""
 
     command_chain = []
@@ -155,7 +155,7 @@ def parse_command_chain(args):
     return command_chain
 
 
-def colored(s, foreground, background=None, **kwargs):
+def colored(s: object, foreground: str, background: str | None = None, **kwargs: bool) -> str:
     if kwargs.get('repr', False):
         s = repr(s)
     else:
@@ -190,11 +190,11 @@ def colored(s, foreground, background=None, **kwargs):
     return code + s + code_end
 
 
-def get_command_str(command):
+def get_command_str(command: list[str]) -> str:
     return ' '.join(shlex.quote(_) for _ in command)
 
 
-def get_command_chain_str(command_chain):
+def get_command_chain_str(command_chain: list[tuple[str | None, list[str]]]) -> str:
     parts = []
 
     for operator, docker_compose_args in command_chain:
@@ -206,7 +206,7 @@ def get_command_chain_str(command_chain):
     return ' '.join(parts)
 
 
-def check_system():
+def check_system() -> bool:
     logger.info('Checking Docker & Docker Compose installation')
     commands = [
         ['docker', '--version'],
@@ -223,7 +223,7 @@ def check_system():
     return True
 
 
-def scan_dirs(dir_path):
+def scan_dirs(dir_path: str) -> list[str]:
     """Scan and show Docker Compose projects"""
 
     docker_compose_dirs = []
@@ -239,7 +239,7 @@ def scan_dirs(dir_path):
     return docker_compose_dirs
 
 
-def cleanup():
+def cleanup() -> None:
     logger.info('Start cleanup')
     for desc, command in COMMANDS_CLEANUP:
         logger.info(desc)
@@ -247,8 +247,8 @@ def cleanup():
         subprocess.call(command)
 
 
-error_info_list = []
-def all_run_commands(docker_compose_dirs, command_chain):
+error_info_list: list[str] = []
+def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[str | None, list[str]]]) -> None:
     logger.info('Running %s in all Docker Compose projects', colored(get_command_chain_str(command_chain), 'green', bold=True))
 
     for i, dir_path in enumerate(docker_compose_dirs):
@@ -263,7 +263,7 @@ def all_run_commands(docker_compose_dirs, command_chain):
             error_info_list.append(error_info)
 
 
-def run_command_chain(command_chain):
+def run_command_chain(command_chain: list[tuple[str | None, list[str]]]) -> int:
     """Run a command chain in the current directory, return the exit status of the last executed command"""
 
     prev_status = 0
@@ -292,7 +292,7 @@ def run_command_chain(command_chain):
     return prev_status
 
 
-def main():
+def main() -> None:
     global shell_args
 
     init_logging()
