@@ -23,7 +23,7 @@ docker-compose-all 是一个 Python CLI 工具，递归扫描目录（默认 `.`
 - 参数透传：除工具自身选项（`--dca-*/--docker-compose-all-*`、`-h/--help`、`-V/--version`）外，所有参数原样透传给 `docker compose`，因此 `docker compose` 的任意原生选项（`-f`、`--profile` 等）都可用。
 - `parse_args()` 用 `parse_known_args` 在任意位置摘出工具自身选项，剩余 `unknown_args` 才透传给 `docker compose`
 - `-h/--help`、`-V/--version` 仅在整个 argv 恰为该参数时归工具自身，否则透传；例如 `up --help` 会透传为 `docker compose up --help`。
-- 无 compose 命令时（argv 为空或仅工具选项）打印 `VERSION_STR_LONG` 退出 0。
+- 无 compose 命令时（argv 为空或仅工具选项），`parse_command_chain()` 返回的 `command_chain` 为空 list。此时 `main()` 扫描后，仅打印日志，跳过 `all_run_commands()`，但仍执行 cleanup 并打印 succeeded。
 - 用 `;`/`&&`/`||` 串联多条命令（必须用引号、转义等方式防止被 shell 吃掉）。条件对每个项目独立求值。采用 bash 短路语义，退出码取最后实际执行的命令，任一项目失败则整体退出 1。解析/校验失败故意不捕获异常，允许裸 traceback crash。
 
 ## 版本与打包

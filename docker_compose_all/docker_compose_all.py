@@ -76,6 +76,9 @@ def init_logging() -> None:
 def parse_command_chain(args: list[str]) -> list[tuple[str | None, list[str]]]:
     """Split raw command line arguments into a chain of (operator, docker_compose_args) pairs"""
 
+    if not args:
+        return []
+
     command_chain = []
     operator = None
     docker_compose_args = []
@@ -139,7 +142,7 @@ Examples:
         parser.print_help()
         sys.exit(0)
 
-    if not unknown_args or (len(args) == 1 and args[0] in ('-V', '--version')):
+    if len(args) == 1 and args[0] in ('-V', '--version'):
         print(VERSION_STR_LONG)
         sys.exit(0)
 
@@ -314,7 +317,11 @@ def main() -> None:
         sys.exit(1)
 
     docker_compose_dirs = scan_dirs(shell_args.scan_dir)
-    all_run_commands(docker_compose_dirs, shell_args.command_chain)
+
+    if shell_args.command_chain:
+        all_run_commands(docker_compose_dirs, shell_args.command_chain)
+    else:
+        logger.info('No Docker Compose command specified')
 
     command_str = get_command_str([PROGRAM_NAME] + sys.argv[1:])
 
