@@ -19,8 +19,10 @@ from datetime import timedelta
 from . import __version__
 
 
-VERSION_STR_SHORT: str = f'docker-compose-all {__version__}'
-VERSION_STR_LONG: str = f'docker-compose-all {__version__}\n{__doc__.strip()}'
+PROGRAM_NAME: str = 'docker-compose-all'
+
+VERSION_STR_SHORT: str = f'{PROGRAM_NAME} {__version__}'
+VERSION_STR_LONG: str = f'{PROGRAM_NAME} {__version__}\n{__doc__.strip()}'
 
 # https://docs.docker.com/compose/compose-file/03-compose-file/
 DOCKER_COMPOSE_FILENAME_SET: set[str] = {
@@ -101,7 +103,7 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     default_scan_dir = '.'
 
     parser = argparse.ArgumentParser(
-        prog='docker-compose-all',
+        prog=PROGRAM_NAME,
         description=VERSION_STR_LONG,
         epilog='''\
 All arguments are passed through to "docker compose" as-is, so any "docker compose" option and command can be used.
@@ -314,6 +316,8 @@ def main() -> None:
     docker_compose_dirs = scan_dirs(shell_args.scan_dir)
     all_run_commands(docker_compose_dirs, shell_args.command_chain)
 
+    command_str = get_command_str([PROGRAM_NAME] + sys.argv[1:])
+
     if len(error_info_list) > 0:
         logger.info('Errors while running commands:')
         for error_info in error_info_list:
@@ -322,13 +326,13 @@ def main() -> None:
         if shell_args.cleanup:
             logger.warning('Skipping cleanup because errors occurred')
 
-        logger.info('Command %s failed', colored(get_command_str(sys.argv), 'default', bold=True))
+        logger.info('Command %s failed', colored(command_str, 'default', bold=True))
         sys.exit(1)
     else:
         if shell_args.cleanup:
             cleanup()
 
-        logger.info('Command %s succeeded', colored(get_command_str(sys.argv), 'default', bold=True))
+        logger.info('Command %s succeeded', colored(command_str, 'default', bold=True))
 
 
 if __name__ == '__main__':
