@@ -71,6 +71,29 @@ def init_logging() -> None:
     logging.addLevelName(logging.DEBUG, f'\x1b[36m{logging.getLevelName(logging.DEBUG)}\x1b[39m')
 
 
+def parse_command_chain(args: list[str]) -> list[tuple[str | None, list[str]]]:
+    """Split raw command line arguments into a chain of (operator, docker_compose_args) pairs"""
+
+    command_chain = []
+    operator = None
+    docker_compose_args = []
+
+    for arg in args:
+        if arg in COMMAND_SEPARATORS:
+            assert_(docker_compose_args, f'Missing command before operator {arg!r}')
+
+            command_chain.append((operator, docker_compose_args))
+            operator = arg
+            docker_compose_args = []
+        else:
+            docker_compose_args.append(arg)
+
+    assert_(docker_compose_args, 'Missing command after operator')
+
+    command_chain.append((operator, docker_compose_args))
+    return command_chain
+
+
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     if args is None:
         args = sys.argv[1:]
@@ -130,29 +153,6 @@ Examples:
     logger.debug('Command line arguments: %r', result)
 
     return result
-
-
-def parse_command_chain(args: list[str]) -> list[tuple[str | None, list[str]]]:
-    """Split raw command line arguments into a chain of (operator, docker_compose_args) pairs"""
-
-    command_chain = []
-    operator = None
-    docker_compose_args = []
-
-    for arg in args:
-        if arg in COMMAND_SEPARATORS:
-            assert_(docker_compose_args, f'Missing command before operator {arg!r}')
-
-            command_chain.append((operator, docker_compose_args))
-            operator = arg
-            docker_compose_args = []
-        else:
-            docker_compose_args.append(arg)
-
-    assert_(docker_compose_args, 'Missing command after operator')
-
-    command_chain.append((operator, docker_compose_args))
-    return command_chain
 
 
 def colored(s: object, foreground: str, background: str | None = None, **kwargs: bool) -> str:
@@ -247,22 +247,6 @@ def cleanup() -> None:
         subprocess.call(command)
 
 
-error_info_list: list[str] = []
-def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[str | None, list[str]]]) -> None:
-    logger.info('Running %s in all Docker Compose projects', colored(get_command_chain_str(command_chain), 'green', bold=True))
-
-    for i, dir_path in enumerate(docker_compose_dirs):
-        logger.info('Running in %s (%d/%d)', colored(dir_path, 'green', repr=True), i + 1, len(docker_compose_dirs))
-
-        os.chdir(dir_path)
-        status = run_command_chain(command_chain)
-
-        if status != 0:
-            error_info = 'Dir: %r, Command chain: %s, Exit status: %d' % (dir_path, get_command_chain_str(command_chain), status)
-            logger.error(colored(error_info, 'red', bold=True))
-            error_info_list.append(error_info)
-
-
 def run_command_chain(command_chain: list[tuple[str | None, list[str]]]) -> int:
     """Run a command chain in the current directory, return the exit status of the last executed command"""
 
@@ -290,6 +274,22 @@ def run_command_chain(command_chain: list[tuple[str | None, list[str]]]) -> int:
             prev_status = 0
 
     return prev_status
+
+
+error_info_list: list[str] = []
+def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[str | None, list[str]]]) -> None:
+    logger.info('Running %s in all Docker Compose projects', colored(get_command_chain_str(command_chain), 'green', bold=True))
+
+    for i, dir_path in enumerate(docker_compose_dirs):
+        logger.info('Running in %s (%d/%d)', colored(dir_path, 'green', repr=True), i + 1, len(docker_compose_dirs))
+
+        os.chdir(dir_path)
+        status = run_command_chain(command_chain)
+
+        if status != 0:
+            error_info = 'Dir: %r, Command chain: %s, Exit status: %d' % (dir_path, get_command_chain_str(command_chain), status)
+            logger.error(colored(error_info, 'red', bold=True))
+            error_info_list.append(error_info)
 
 
 def main() -> None:
