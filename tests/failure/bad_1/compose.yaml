@@ -1,0 +1,9 @@
+services:
+  app:
+    image: alpine:latest
+    init: true
+    command: ['sleep', '3600']
+
+    # Intentional error: db is never defined
+    depends_on:
+      - db

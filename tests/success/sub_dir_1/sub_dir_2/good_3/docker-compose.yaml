@@ -1,0 +1,5 @@
+services:
+  app:
+    image: alpine:latest
+    init: true
+    command: ['sleep', '3600']
