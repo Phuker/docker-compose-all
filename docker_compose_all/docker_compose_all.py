@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 """
-A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory.
+Recursively scan a directory for Docker Compose projects and run docker compose in every project found.
 https://github.com/Phuker/docker-compose-all
 """
 
@@ -104,13 +104,9 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         prog='docker-compose-all',
         description=VERSION_STR_LONG,
         epilog='''\
-Recursively scan the directory and run "docker compose" in every Docker Compose
-project found. All arguments are passed through to "docker compose" as-is, so any
-"docker compose" option and command can be used.
-
-Multiple commands can be chained with the separators ';', '&&', and '||' (quote
-them to protect them from the shell). Conditions are evaluated independently for
-each project, using the exit status of the previous command in that project.
+All arguments are passed through to "docker compose" as-is, so any "docker compose" option and command can be used.
+Multiple commands can be chained with the separators ';', '&&', and '||' (quote them to protect them from the shell).
+Conditions are evaluated independently for each project, using the exit status of the previous command in that project.
 
 Examples:
 
