@@ -15,11 +15,11 @@ docker-compose-all 是一个 Python CLI 工具，递归扫描目录（默认 `.`
 - `shell_args`、`error_info_list` 为模块级全局可变状态。
 - 非 root 只告警不退出（`logger.warning('Not running as root')`）。
 - `all_run_commands()` 会 `os.chdir()` 进入各项目目录且不恢复，需留意 cwd 副作用。
-- `cleanup()` 与 `COMMANDS_CLEAN` / `COMMAND_CLEAN_*` 当前无调用者，是为后续"全部运行完且无异常时的清理"预留（可能以 `--dca-` 选项触发），不要误当作生效逻辑。
+- `cleanup()` 由 `--dca-cleanup` 触发，对应 `COMMANDS_CLEANUP` / `COMMAND_CLEANUP_*`，依次执行 `docker network/image/builder prune -f`，仅在全部项目命令成功（`error_info_list` 为空）时执行；存在错误时跳过并告警。清理命令用 `subprocess.call` 执行，返回码被忽略。
 
 ## 参数
 
-- 工具自身选项统一用 `--dca-` / `--docker-compose-all-` 前缀（例如 `--dca-scan-dir`、`--dca-verbose`），与 `docker compose` 选项隔离；parser 设 `allow_abbrev=False`，不可用前缀缩写参数。
+- 工具自身选项统一用 `--dca-` / `--docker-compose-all-` 前缀（例如 `--dca-scan-dir`、`--dca-verbose`、`--dca-cleanup`），与 `docker compose` 选项隔离；parser 设 `allow_abbrev=False`，不可用前缀缩写参数。
 - 参数透传：除工具自身选项（`--dca-*/--docker-compose-all-*`、`-h/--help`、`-V/--version`）外，所有参数原样透传给 `docker compose`，因此 `docker compose` 的任意原生选项（`-f`、`--profile` 等）都可用。
 - `parse_args()` 用 `parse_known_args` 在任意位置摘出工具自身选项，剩余 `unknown_args` 才透传给 `docker compose`
 - `-h/--help`、`-V/--version` 仅在整个 argv 恰为该参数时归工具自身，否则透传；例如 `up --help` 会透传为 `docker compose up --help`。

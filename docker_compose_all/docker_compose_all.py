@@ -30,13 +30,13 @@ DOCKER_COMPOSE_FILENAME_SET = {
     'docker-compose.yml',
 }
 
-COMMAND_CLEAN_NETWORKS = ('Removing all unused networks', ['docker', 'network', 'prune', '-f'])
-COMMAND_CLEAN_IMAGES = ('Remove unused images', ['docker', 'image', 'prune', '-f'])
-COMMAND_CLEAN_BUILDER = ('Remove build cache', ['docker', 'builder', 'prune', '-f'])
-COMMANDS_CLEAN = [
-    COMMAND_CLEAN_NETWORKS,
-    COMMAND_CLEAN_IMAGES,
-    COMMAND_CLEAN_BUILDER,
+COMMAND_CLEANUP_NETWORKS = ('Removing all unused networks', ['docker', 'network', 'prune', '-f'])
+COMMAND_CLEANUP_IMAGES = ('Remove unused images', ['docker', 'image', 'prune', '-f'])
+COMMAND_CLEANUP_BUILDER = ('Remove build cache', ['docker', 'builder', 'prune', '-f'])
+COMMANDS_CLEANUP = [
+    COMMAND_CLEANUP_NETWORKS,
+    COMMAND_CLEANUP_IMAGES,
+    COMMAND_CLEANUP_BUILDER,
 ]
 
 DOCKER_COMPOSE_PREFIX = ['docker', 'compose']
@@ -100,6 +100,7 @@ Examples:
 
     parser.add_argument('--dca-scan-dir', '--docker-compose-all-scan-dir', dest='scan_dir', metavar='dir_path', default=default_scan_dir, help='Directory to scan for Docker Compose projects, default: %(default)r')
     parser.add_argument('--dca-verbose', '--docker-compose-all-verbose', dest='verbose', action='count', default=0, help='Increase verbosity level')
+    parser.add_argument('--dca-cleanup', '--docker-compose-all-cleanup', dest='cleanup', action='store_true', help='Cleanup before exit, if no error. Remove ALL unused networks, images and build cache. WARN: This may cause data loss.')
 
     result, unknown_args = parser.parse_known_args(args)
 
@@ -239,8 +240,8 @@ def scan_dirs(dir_path):
 
 
 def cleanup():
-    logger.info('Cleanning up')
-    for desc, command in COMMANDS_CLEAN:
+    logger.info('Start cleanup')
+    for desc, command in COMMANDS_CLEANUP:
         logger.info(desc)
         logger.info('Running %s', colored(get_command_str(command), 'green', bold=True))
         subprocess.call(command)
@@ -322,10 +323,16 @@ def main():
         for error_info in error_info_list:
             logger.error(colored(error_info, 'red', bold=True))
 
+        if shell_args.cleanup:
+            logger.warning('Skip cleanup because error happened')
+
         logger.info('Command %s exit with some error', colored(get_command_str(sys.argv), 'default', bold=True))
         sys.exit(1)
+    else:
+        if shell_args.cleanup:
+            cleanup()
 
-    logger.info('Command %s exit with no error', colored(get_command_str(sys.argv), 'default', bold=True))
+        logger.info('Command %s exit with no error', colored(get_command_str(sys.argv), 'default', bold=True))
 
 
 if __name__ == '__main__':
