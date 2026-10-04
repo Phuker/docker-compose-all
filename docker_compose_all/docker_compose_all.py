@@ -14,7 +14,6 @@ import atexit
 import time
 import subprocess
 import shlex
-from types import SimpleNamespace
 from datetime import timedelta
 
 from . import __version__
@@ -42,9 +41,6 @@ COMMANDS_CLEAN = [
 
 DOCKER_COMPOSE_PREFIX = ['docker', 'compose']
 COMMAND_SEPARATORS = (';', '&&', '||')
-
-SCAN_DIR_ENV_NAME = 'DOCKER_COMPOSE_ALL_SCAN_DIR'
-DEFAULT_SCAN_DIR = '.'
 
 logger = logging.getLogger(__name__)
 shell_args = None
@@ -79,49 +75,58 @@ def parse_args(args=None):
     if args is None:
         args = sys.argv[1:]
 
+    default_scan_dir = '.'
+
     parser = argparse.ArgumentParser(
         prog='docker-compose-all',
-        usage='%(prog)s [DOCKER_COMPOSE_ARGS] [(";" | "&&" | "||") DOCKER_COMPOSE_ARGS] ...',
         description=VERSION_STR_LONG,
-        epilog=f'''Run "docker compose <DOCKER_COMPOSE_ARGS>" in every Docker Compose project found
-in the scan directory. All arguments are passed through to "docker compose" as-is,
-so any "docker compose" option and command can be used.
+        epilog='''\
+Run "docker compose" in every Docker Compose project found in the scan
+directory. All arguments are passed through to "docker compose" as-is, so any
+"docker compose" option and command can be used.
 
 Multiple commands can be chained with the separators ';', '&&' and '||' (quote
 them to protect them from the shell). The conditionals are evaluated for each
 project independently, using the exit status of that project's previous command.
 
-Environment variables:
-  DOCKER_COMPOSE_ALL_SCAN_DIR  Directory to scan for Docker Compose projects, default: {DEFAULT_SCAN_DIR!r}
-
 Examples:
+
   docker-compose-all up -d
-  docker-compose-all -f compose.yaml up -d
-  docker-compose-all --progress plain build --pull '&&' up -d''',
+  docker-compose-all --progress plain build --pull --no-cache '&&' up -d''',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         add_help=False,
+        allow_abbrev=False,
     )
 
+    parser.add_argument('--dca-scan-dir', '--docker-compose-all-scan-dir', dest='scan_dir', metavar='dir_path', default=default_scan_dir, help='Directory to scan for Docker Compose projects, default: %(default)r')
+    parser.add_argument('--dca-verbose', '--docker-compose-all-verbose', dest='verbose', action='count', default=0, help='Increase verbosity level')
+
+    result, unknown_args = parser.parse_known_args(args)
+
+    if result.verbose >= 1:
+        logging.root.setLevel(logging.DEBUG)
+
+    logger.debug('Parsed arguments: %r, unknown arguments: %r', result, unknown_args)
+
+    # Only for print_help()
     parser.add_argument('-h', '--help', action='store_true', help='Show this help message and exit')
     parser.add_argument('-V', '--version', action='store_true', help='Show version and exit')
+    parser.add_argument('docker_compose_args', nargs='*', help='See below for details')
 
-    parsed_args, unknown_args = parser.parse_known_args(args)
-
-    if len(args) == 1 and not unknown_args and parsed_args.help:
+    if len(args) == 1 and args[0] in ('-h', '--help'):
         parser.print_help()
         sys.exit(0)
 
-    if not args or (len(args) == 1 and not unknown_args and parsed_args.version):
+    if not unknown_args or (len(args) == 1 and args[0] in ('-V', '--version')):
         print(VERSION_STR_LONG)
         sys.exit(0)
 
-    command_chain = parse_command_chain(args)
+    result.command_chain = parse_command_chain(unknown_args)
 
-    scan_dir = os.environ.get(SCAN_DIR_ENV_NAME, DEFAULT_SCAN_DIR)
-    scan_dir = os.path.abspath(os.path.expanduser(scan_dir))
-    assert_(os.path.isdir(scan_dir), f'Dir not found: {scan_dir!r}')
+    result.scan_dir = os.path.abspath(os.path.expanduser(result.scan_dir))
+    assert_(os.path.isdir(result.scan_dir), f'Dir not found: {result.scan_dir!r}')
 
-    result = SimpleNamespace(command_chain=command_chain, scan_dir=scan_dir)
+    logger.debug('Command line arguments: %r', result)
 
     return result
 
@@ -154,7 +159,7 @@ def colored(s, foreground, background=None, **kwargs):
         s = repr(s)
     else:
         s = str(s)
-    
+
     foreground_color_table = {
         'red': '31',
         'green': '32',
