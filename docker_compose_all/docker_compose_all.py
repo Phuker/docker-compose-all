@@ -30,7 +30,7 @@ DOCKER_COMPOSE_FILENAME_SET: set[str] = {
     'docker-compose.yml',
 }
 
-COMMAND_CLEANUP_NETWORKS: tuple[str, list[str]] = ('Removing all unused networks', ['docker', 'network', 'prune', '-f'])
+COMMAND_CLEANUP_NETWORKS: tuple[str, list[str]] = ('Remove unused networks', ['docker', 'network', 'prune', '-f'])
 COMMAND_CLEANUP_IMAGES: tuple[str, list[str]] = ('Remove unused images', ['docker', 'image', 'prune', '-f'])
 COMMAND_CLEANUP_BUILDER: tuple[str, list[str]] = ('Remove build cache', ['docker', 'builder', 'prune', '-f'])
 COMMANDS_CLEANUP: list[tuple[str, list[str]]] = [
@@ -39,7 +39,7 @@ COMMANDS_CLEANUP: list[tuple[str, list[str]]] = [
     COMMAND_CLEANUP_BUILDER,
 ]
 
-DOCKER_COMPOSE_PREFIX: list[str] = ['docker', 'compose']
+DOCKER_COMPOSE_COMMAND_PREFIX: list[str] = ['docker', 'compose']
 COMMAND_SEPARATORS: tuple[str, ...] = (';', '&&', '||')
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -104,13 +104,13 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         prog='docker-compose-all',
         description=VERSION_STR_LONG,
         epilog='''\
-Run "docker compose" in every Docker Compose project found in the scan
-directory. All arguments are passed through to "docker compose" as-is, so any
+Recursively scan the directory and run "docker compose" in every Docker Compose
+project found. All arguments are passed through to "docker compose" as-is, so any
 "docker compose" option and command can be used.
 
-Multiple commands can be chained with the separators ';', '&&' and '||' (quote
-them to protect them from the shell). The conditionals are evaluated for each
-project independently, using the exit status of that project's previous command.
+Multiple commands can be chained with the separators ';', '&&', and '||' (quote
+them to protect them from the shell). Conditions are evaluated independently for
+each project, using the exit status of the previous command in that project.
 
 Examples:
 
@@ -121,9 +121,9 @@ Examples:
         allow_abbrev=False,
     )
 
-    parser.add_argument('--dca-scan-dir', '--docker-compose-all-scan-dir', dest='scan_dir', metavar='dir_path', default=default_scan_dir, help='Directory to scan for Docker Compose projects, default: %(default)r')
+    parser.add_argument('--dca-scan-dir', '--docker-compose-all-scan-dir', dest='scan_dir', metavar='dir_path', default=default_scan_dir, help='Directory to recursively scan for Docker Compose projects, default: %(default)r')
     parser.add_argument('--dca-verbose', '--docker-compose-all-verbose', dest='verbose', action='count', default=0, help='Increase verbosity level')
-    parser.add_argument('--dca-cleanup', '--docker-compose-all-cleanup', dest='cleanup', action='store_true', help='Cleanup before exit, if no error. Remove ALL unused networks, images and build cache. WARN: This may cause data loss.')
+    parser.add_argument('--dca-cleanup', '--docker-compose-all-cleanup', dest='cleanup', action='store_true', help='Clean up unused Docker networks, images, and build cache before exit, unless an error occurred. WARNING: This may cause data loss.')
 
     result, unknown_args = parser.parse_known_args(args)
 
@@ -148,7 +148,7 @@ Examples:
     result.command_chain = parse_command_chain(unknown_args)
 
     result.scan_dir = os.path.abspath(os.path.expanduser(result.scan_dir))
-    assert_(os.path.isdir(result.scan_dir), f'Dir not found: {result.scan_dir!r}')
+    assert_(os.path.isdir(result.scan_dir), f'Directory not found: {result.scan_dir!r}')
 
     logger.debug('Command line arguments: %r', result)
 
@@ -182,7 +182,7 @@ def colored(s: object, foreground: str, background: str | None = None, **kwargs:
         options.append('7')
 
     options.append(foreground_color_table.get(foreground, '39'))
-    if not background is None:
+    if background is not None:
         options.append(background_color_table.get(background, '49'))
 
     code = '\x1b[' + ';'.join(options) + 'm'
@@ -201,13 +201,13 @@ def get_command_chain_str(command_chain: list[tuple[str | None, list[str]]]) -> 
         if operator:
             parts.append(operator)
 
-        parts.append(get_command_str(DOCKER_COMPOSE_PREFIX + docker_compose_args))
+        parts.append(get_command_str(DOCKER_COMPOSE_COMMAND_PREFIX + docker_compose_args))
 
     return ' '.join(parts)
 
 
 def check_system() -> bool:
-    logger.info('Checking Docker & Docker Compose installation')
+    logger.info('Checking Docker and Docker Compose installation')
     commands = [
         ['docker', '--version'],
         ['docker', 'compose', 'version'],
@@ -217,7 +217,7 @@ def check_system() -> bool:
         try:
             subprocess.check_call(command)
         except Exception as e:
-            logger.error('Error when running %s: %r %r', colored(get_command_str(command), 'red', bold=True), type(e), e)
+            logger.error('Error running %s: %r %r', colored(get_command_str(command), 'red', bold=True), type(e), e)
             return False
 
     return True
@@ -227,7 +227,7 @@ def scan_dirs(dir_path: str) -> list[str]:
     """Scan and show Docker Compose projects"""
 
     docker_compose_dirs = []
-    logger.info('Scanning %s ...', colored(dir_path, 'cyan', bold=True, repr=True))
+    logger.info('Scanning %s', colored(dir_path, 'cyan', bold=True, repr=True))
     for top, __, files in os.walk(dir_path, followlinks=True):
         dir_path = os.path.abspath(top)
 
@@ -240,9 +240,9 @@ def scan_dirs(dir_path: str) -> list[str]:
 
 
 def cleanup() -> None:
-    logger.info('Start cleanup')
-    for desc, command in COMMANDS_CLEANUP:
-        logger.info(desc)
+    logger.info('Cleaning up')
+    for description, command in COMMANDS_CLEANUP:
+        logger.info(description)
         logger.info('Running %s', colored(get_command_str(command), 'green', bold=True))
         subprocess.call(command)
 
@@ -263,7 +263,7 @@ def run_command_chain(command_chain: list[tuple[str | None, list[str]]]) -> int:
         if not should_run:
             continue
 
-        command = DOCKER_COMPOSE_PREFIX + docker_compose_args
+        command = DOCKER_COMPOSE_COMMAND_PREFIX + docker_compose_args
         logger.info('Running %s', colored(get_command_str(command), 'green', bold=True))
 
         try:
@@ -280,14 +280,14 @@ error_info_list: list[str] = []
 def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[str | None, list[str]]]) -> None:
     logger.info('Running %s in all Docker Compose projects', colored(get_command_chain_str(command_chain), 'green', bold=True))
 
-    for i, dir_path in enumerate(docker_compose_dirs):
-        logger.info('Running in %s (%d/%d)', colored(dir_path, 'green', repr=True), i + 1, len(docker_compose_dirs))
+    for index, dir_path in enumerate(docker_compose_dirs, start=1):
+        logger.info('Running in %s (%d/%d)', colored(dir_path, 'green', repr=True), index, len(docker_compose_dirs))
 
         os.chdir(dir_path)
         status = run_command_chain(command_chain)
 
         if status != 0:
-            error_info = 'Dir: %r, Command chain: %s, Exit status: %d' % (dir_path, get_command_chain_str(command_chain), status)
+            error_info = 'Directory: %r, command chain: %s, exit status: %d' % (dir_path, get_command_chain_str(command_chain), status)
             logger.error(colored(error_info, 'red', bold=True))
             error_info_list.append(error_info)
 
@@ -303,36 +303,36 @@ def main() -> None:
     else:
         atexit.register(lambda: logger.info('Exiting\n'))
 
-    _start_time_stamp = time.time()
-    atexit.register(lambda: logger.info('Time elapsed: %s', timedelta(seconds=int(time.time() - _start_time_stamp))))
+    start_timestamp = time.time()
+    atexit.register(lambda: logger.info('Time elapsed: %s', timedelta(seconds=int(time.time() - start_timestamp))))
 
     logger.info(colored(VERSION_STR_SHORT, 'default', bold=True))
 
     if not os.getuid() == 0:
-        logger.warning('Not running as root')
+        logger.warning('Not running as root, some operations may fail')
 
     if not check_system():
-        logger.error(colored('Docker & Docker Compose installation incomplete', 'red', bold=True))
+        logger.error(colored('Docker or Docker Compose is not available', 'red', bold=True))
         sys.exit(1)
 
     docker_compose_dirs = scan_dirs(shell_args.scan_dir)
     all_run_commands(docker_compose_dirs, shell_args.command_chain)
 
     if len(error_info_list) > 0:
-        logger.info('After run all commands, errors:')
+        logger.info('Errors while running commands:')
         for error_info in error_info_list:
             logger.error(colored(error_info, 'red', bold=True))
 
         if shell_args.cleanup:
-            logger.warning('Skip cleanup because error happened')
+            logger.warning('Skipping cleanup because errors occurred')
 
-        logger.info('Command %s exit with some error', colored(get_command_str(sys.argv), 'default', bold=True))
+        logger.info('Command %s failed', colored(get_command_str(sys.argv), 'default', bold=True))
         sys.exit(1)
     else:
         if shell_args.cleanup:
             cleanup()
 
-        logger.info('Command %s exit with no error', colored(get_command_str(sys.argv), 'default', bold=True))
+        logger.info('Command %s succeeded', colored(get_command_str(sys.argv), 'default', bold=True))
 
 
 if __name__ == '__main__':
