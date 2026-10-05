@@ -232,11 +232,12 @@ def scan_dirs(dir_path: str) -> list[str]:
     for top, __, files in os.walk(dir_path, followlinks=True):
         dir_path = os.path.abspath(top)
 
-        if set(files) & DOCKER_COMPOSE_FILENAME_SET and dir_path not in docker_compose_dirs:
-            logger.info('Found: %s', colored(dir_path, 'cyan', repr=True))
+        if (set(files) & DOCKER_COMPOSE_FILENAME_SET) and dir_path not in docker_compose_dirs:
             docker_compose_dirs.append(dir_path)
+            logger.info('(%d) Found: %s', len(docker_compose_dirs), colored(dir_path, 'cyan', repr=True))
 
     logger.info('Found %s Docker Compose projects', colored(len(docker_compose_dirs), 'default', bold=True))
+
     return docker_compose_dirs
 
 
@@ -282,7 +283,7 @@ def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[s
     logger.info('Running %s in all Docker Compose projects', colored(get_command_chain_str(command_chain), 'green', bold=True))
 
     for index, dir_path in enumerate(docker_compose_dirs, start=1):
-        logger.info('Running in %s (%d/%d)', colored(dir_path, 'green', repr=True), index, len(docker_compose_dirs))
+        logger.info('(%d/%d) Running in %s', index, len(docker_compose_dirs), colored(dir_path, 'green', repr=True))
 
         os.chdir(dir_path)
         status = run_command_chain(command_chain)
