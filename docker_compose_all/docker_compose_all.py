@@ -254,10 +254,11 @@ def cleanup() -> None:
         subprocess.call(command)
 
 
-def run_command_chain(command_chain: list[tuple[str | None, list[str]]], dir_path: str) -> int:
-    """Run a command chain in the given working directory, return the exit status of the last executed command"""
+def run_command_chain(command_chain: list[tuple[str | None, list[str]]], dir_path: str) -> tuple[int, str]:
+    """Run a command chain in the given working directory, return the exit status and the last executed command"""
 
     prev_status = 0
+    last_executed_command = ''
 
     for operator, docker_compose_args in command_chain:
         if operator == '&&':
@@ -271,7 +272,8 @@ def run_command_chain(command_chain: list[tuple[str | None, list[str]]], dir_pat
             continue
 
         command = DOCKER_COMPOSE_COMMAND_PREFIX + docker_compose_args
-        logger.info('Running %s', colored(get_command_str(command), 'green', bold=True))
+        last_executed_command = get_command_str(command)
+        logger.info('Running %s', colored(last_executed_command, 'green', bold=True))
 
         try:
             subprocess.check_call(command, cwd=dir_path)
@@ -280,7 +282,7 @@ def run_command_chain(command_chain: list[tuple[str | None, list[str]]], dir_pat
         else:
             prev_status = 0
 
-    return prev_status
+    return prev_status, last_executed_command
 
 
 error_info_list: list[str] = []
@@ -290,10 +292,10 @@ def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[s
     for index, dir_path in enumerate(docker_compose_dirs, start=1):
         logger.info('(%d/%d) Running in %s', index, len(docker_compose_dirs), colored(dir_path, 'green', repr=True))
 
-        status = run_command_chain(command_chain, dir_path)
+        status, last_executed_command = run_command_chain(command_chain, dir_path)
 
         if status != 0:
-            error_info = 'Directory: %r, command chain: %s, exit status: %d' % (dir_path, get_command_chain_str(command_chain), status)
+            error_info = f'Directory: {dir_path!r}, failed command: {last_executed_command}, exit status: {status}'
             logger.error(colored(error_info, 'red', bold=True))
             error_info_list.append(error_info)
 
