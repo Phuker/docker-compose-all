@@ -24,7 +24,7 @@ docker-compose-all 是一个 Python CLI 工具，递归扫描目录（默认 `.`
 - `parse_args()` 用 `parse_known_args` 在任意位置摘出工具自身选项，剩余 `unknown_args` 才透传给 `docker compose`
 - `-h/--help`、`-V/--version` 仅在整个 argv 恰为该参数时归工具自身，否则透传；例如 `up --help` 会透传为 `docker compose up --help`。
 - 无 compose 命令时（argv 为空或仅工具选项），`parse_command_chain()` 返回的 `command_chain` 为空 list。此时 `main()` 扫描后，仅打印日志，跳过 `all_run_commands()`，但仍执行 cleanup 并打印 succeeded。
-- 用 `;`/`&&`/`||` 串联多条命令（必须用引号、转义等方式防止被 shell 吃掉）。条件对每个项目独立求值。采用 bash 短路语义，退出码取最后实际执行的命令，任一项目失败则整体退出 1。解析/校验失败故意不捕获异常，允许裸 traceback crash。
+- 用 `;`/`&&`/`||` 串联多条命令（必须用引号、转义等方式防止被 shell 吃掉）。末尾的 `;` 视为命令终止符，允许并忽略；末尾的 `&&`/`||` 因缺少后继命令而报错。解析/校验失败故意不捕获异常，允许裸 traceback crash。采用 bash 短路语义，条件对每个项目独立求值，退出码取最后实际执行的命令，任一项目失败则整体退出 1。
 
 ## 版本与打包
 
@@ -34,7 +34,8 @@ docker-compose-all 是一个 Python CLI 工具，递归扫描目录（默认 `.`
 
 # 验证与测试
 
-- 仓库没有测试、linter、formatter、CI 配置，不要臆造测试命令；改动后至少运行 `python3 -m docker_compose_all --version` 或 `--help` 做冒烟验证（本机无 docker 时 `check_system()` 会报错并退出 1）。
+- 仓库没有 linter、formatter、CI 配置，不要臆造测试命令；改动后至少运行 `python3 -m docker_compose_all --version` 或 `--help` 做冒烟验证（如果本机未安装 Docker、Docker Compose，`check_system()` 会报错并退出 1）。
+- `tests/` 为手动集成测试样例，无自动化 runner：`tests/success/` 全部项目有效（运行应退出 0），`tests/failure/` 混合有效与无效项目（应汇总报错并退出 1）。
 
 # 其他
 
