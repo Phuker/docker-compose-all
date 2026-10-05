@@ -11,7 +11,7 @@ docker-compose-all 是一个 Python CLI 工具，递归扫描目录（默认 `.`
 # 设计细节
 
 - 调用的是 `docker compose`（`docker` 子命令），不是旧版 `docker-compose`。
-- 扫描目录来自 `--dca-scan-dir`（默认 `.`）；`scan_dirs()` 会 `os.walk(..., followlinks=True)`，软链接可能造成重复扫描；项目识别依据文件名：`compose.yaml` / `compose.yml` / `docker-compose.yaml` / `docker-compose.yml`。
+- 扫描目录来自 `--dca-scan-dir`（默认 `.`）；`scan_dirs()` 会 `os.walk(..., followlinks=True)`，软链接可能造成重复扫描；循环内对 `os.walk()` 返回的 `dirs` 就地 `dirs.sort()`，从而返回确定性的目录树排序；项目识别依据文件名：`compose.yaml` / `compose.yml` / `docker-compose.yaml` / `docker-compose.yml`。
 - 日志输出到 stdout（`init_logging()` 设 `stream=sys.stdout`），不是 stderr，日志与 `docker compose` 子进程输出同流交织。
 - 将各项目的 `dir_path` 作为 `cwd` 参数传入 `subprocess.check_call()`，不改变当前进程 cwd，无 cwd 副作用。
 - `cleanup()` 由 `--dca-cleanup` 触发，对应 `COMMANDS_CLEANUP` / `COMMAND_CLEANUP_*`，依次执行 `docker network/image/builder prune -f`，仅在全部项目命令成功（`error_info_list` 为空）时执行；存在错误时跳过并告警。清理命令用 `subprocess.call` 执行，返回码被忽略。

@@ -241,9 +241,10 @@ def scan_dirs(dir_path: str) -> list[str]:
 
     docker_compose_dirs = []
     logger.info('Scanning %s', colored(dir_path, 'cyan', bold=True, repr=True))
-    for top, __, files in os.walk(dir_path, followlinks=True):
-        top = os.path.abspath(top)
+    for top, dirs, files in os.walk(dir_path, followlinks=True):
+        dirs.sort()
 
+        top = os.path.abspath(top)
         if (set(files) & DOCKER_COMPOSE_FILENAME_SET) and top not in docker_compose_dirs:
             docker_compose_dirs.append(top)
             logger.info('(%d) Found: %s', len(docker_compose_dirs), colored(top, 'cyan', repr=True))
