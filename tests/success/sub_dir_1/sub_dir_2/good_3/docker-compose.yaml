@@ -1,5 +1,5 @@
 services:
   app:
-    image: alpine:latest
+    image: ubuntu:latest
     init: true
     command: ['sleep', '3600']
