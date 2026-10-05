@@ -74,7 +74,10 @@ def init_logging() -> None:
 
 
 def parse_command_chain(args: list[str]) -> list[tuple[str | None, list[str]]]:
-    """Split raw command line arguments into a chain of (operator, docker_compose_args) pairs"""
+    """
+    Split raw command line arguments into a chain of (operator, docker_compose_args) pairs
+    A trailing ';' is a command terminator equivalent to no trailing separator; '&&' and '||' require a following command
+    """
 
     if not args:
         return []
@@ -93,9 +96,11 @@ def parse_command_chain(args: list[str]) -> list[tuple[str | None, list[str]]]:
         else:
             docker_compose_args.append(arg)
 
-    assert_(docker_compose_args, 'Missing command after operator')
+    if docker_compose_args:
+        command_chain.append((operator, docker_compose_args))
+    else:
+        assert_(operator == ';', f'Missing command after operator {operator!r}')
 
-    command_chain.append((operator, docker_compose_args))
     return command_chain
 
 
