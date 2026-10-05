@@ -254,8 +254,8 @@ def cleanup() -> None:
         subprocess.call(command)
 
 
-def run_command_chain(command_chain: list[tuple[str | None, list[str]]]) -> int:
-    """Run a command chain in the current directory, return the exit status of the last executed command"""
+def run_command_chain(command_chain: list[tuple[str | None, list[str]]], dir_path: str) -> int:
+    """Run a command chain in the given working directory, return the exit status of the last executed command"""
 
     prev_status = 0
 
@@ -274,7 +274,7 @@ def run_command_chain(command_chain: list[tuple[str | None, list[str]]]) -> int:
         logger.info('Running %s', colored(get_command_str(command), 'green', bold=True))
 
         try:
-            subprocess.check_call(command)
+            subprocess.check_call(command, cwd=dir_path)
         except subprocess.CalledProcessError as e:
             prev_status = e.returncode
         else:
@@ -290,8 +290,7 @@ def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[s
     for index, dir_path in enumerate(docker_compose_dirs, start=1):
         logger.info('(%d/%d) Running in %s', index, len(docker_compose_dirs), colored(dir_path, 'green', repr=True))
 
-        os.chdir(dir_path)
-        status = run_command_chain(command_chain)
+        status = run_command_chain(command_chain, dir_path)
 
         if status != 0:
             error_info = 'Directory: %r, command chain: %s, exit status: %d' % (dir_path, get_command_chain_str(command_chain), status)
