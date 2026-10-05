@@ -2,8 +2,6 @@
 
 Recursively scan a directory for Docker Compose projects and run `docker compose` in every project found.
 
-![screenshots1.png](./screenshots/screenshot1.png)
-
 ## Requirements
 
 - Python 3.10 or later
@@ -69,13 +67,21 @@ options:
   -V, --version         Show version and exit
 
 All arguments are passed through to "docker compose" as-is, so any "docker compose" option and command can be used.
-Multiple commands can be chained with the separators ';', '&&', and '||' (quote them to protect them from the shell).
-Conditions are evaluated independently for each project, using the exit status of the previous command in that project.
+
+Multiple commands can be chained with the separators ';', '&&', and '||', just like chaining shell commands;
+the chain is evaluated independently in each project. Quote the separators to protect them from your shell.
 
 Examples:
 
-  docker-compose-all up -d
-  docker-compose-all --progress plain build --pull --no-cache '&&' up -d
+  Create and start containers in the background
+  Equivalent in every project: docker compose up -d
+
+    docker-compose-all up -d
+
+  Rebuild images, then create and start containers in the background
+  Equivalent in every project: docker compose --progress plain build --pull --no-cache && docker compose up -d
+
+    docker-compose-all --progress plain build --pull --no-cache '&&' up -d
 ```
 
 ## License
