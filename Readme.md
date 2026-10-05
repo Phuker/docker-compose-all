@@ -1,61 +1,82 @@
 # docker-compose-all
 
-A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory.
+Recursively scan a directory for Docker Compose projects and run `docker compose` in every project found.
 
 ![screenshots1.png](./screenshots/screenshot1.png)
 
 ## Requirements
 
-- Python >= `3.6`, with `pip` installed
+- Python 3.10 or later
 - Docker
-- Docker Compose
+- Docker Compose v2 or later
 
-## Install
+## Install and run
+
+### Run with uvx (without installation)
 
 ```bash
-python3 -m pip install -U docker-compose-all
+uvx docker-compose-all --help
+```
+
+### Run with pipx (without installation)
+
+```bash
+pipx run docker-compose-all --help
+```
+
+### Install with uv and run
+
+```bash
+uv tool install docker-compose-all
+docker-compose-all --help
+```
+
+### Install with pipx and run
+
+```bash
+pipx install docker-compose-all
+docker-compose-all --help
+```
+
+### Install with pip and run
+
+```bash
+pip install docker-compose-all
+docker-compose-all --help
 ```
 
 ## Usage
 
 ```console
 # docker-compose-all --help
-usage: docker-compose-all [-h] [--restart | --stop | --down | --build | --up | --ps | --top] [--dokill] [--normi] [--nopull] [--doclean] [-V] [-v] [dir_path]
+usage: docker-compose-all [--dca-scan-dir dir_path] [--dca-verbose] [--dca-cleanup] [-h] [-V] [docker_compose_args ...]
 
 docker-compose-all 0.2.2
-A very simple Docker cluster management tool, recursively search and control all Docker Compose projects in a directory.
+Recursively scan a directory for Docker Compose projects and run docker compose in every project found.
 https://github.com/Phuker/docker-compose-all
 
 positional arguments:
-  dir_path       A directory which contains Docker Compose projects, default: '.'
+  docker_compose_args   See below for details
 
 options:
-  -h, --help     show this help message and exit
-  --restart      Completely rebuild and rerun all. Including the following steps: stop, down, build, up, ps.
-  --stop         Stop all containers
-  --down         Make all down. Stop and remove containers, networks, images
-  --build        Rebuild all
-  --up           Make all up
-  --ps           Each ps
-  --top          List all process
-  -V, --version  Show version and exit
-  -v, --verbose  Increase verbosity level (use -vv or more for greater effect)
+  --dca-scan-dir, --docker-compose-all-scan-dir dir_path
+                        Directory to recursively scan for Docker Compose projects, default: '.'
+  --dca-verbose, --docker-compose-all-verbose
+                        Increase verbosity level
+  --dca-cleanup, --docker-compose-all-cleanup
+                        Clean up unused Docker networks, images, and build cache before exit, unless an error occurred. WARNING: This may cause data loss.
+  -h, --help            Show this help message and exit
+  -V, --version         Show version and exit
 
-docker compose options:
-  --dokill       Run "docker compose kill" instead of "docker compose stop"
-  --normi        Do NOT remove Docker images when running "docker compose down"
-  --nopull       Do NOT pull images when running "docker compose build"
-  --doclean      Clean up before exit, if no error. Remove ALL unused networks, images and build cache. WARN: This may cause data loss.
+All arguments are passed through to "docker compose" as-is, so any "docker compose" option and command can be used.
+Multiple commands can be chained with the separators ';', '&&', and '||' (quote them to protect them from the shell).
+Conditions are evaluated independently for each project, using the exit status of the previous command in that project.
+
+Examples:
+
+  docker-compose-all up -d
+  docker-compose-all --progress plain build --pull --no-cache '&&' up -d
 ```
-
-## Documentation
-
-```bash
-cat docker_compose_all.py
-```
-
-## FAQ
-
 
 ## License
 
