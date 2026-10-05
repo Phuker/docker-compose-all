@@ -45,7 +45,6 @@ DOCKER_COMPOSE_COMMAND_PREFIX: list[str] = ['docker', 'compose']
 COMMAND_SEPARATORS: tuple[str, ...] = (';', '&&', '||')
 
 logger: logging.Logger = logging.getLogger(__name__)
-shell_args: argparse.Namespace | None = None
 
 
 def assert_(expr: object, msg: str = '') -> None:
@@ -243,11 +242,11 @@ def scan_dirs(dir_path: str) -> list[str]:
     docker_compose_dirs = []
     logger.info('Scanning %s', colored(dir_path, 'cyan', bold=True, repr=True))
     for top, __, files in os.walk(dir_path, followlinks=True):
-        dir_path = os.path.abspath(top)
+        top = os.path.abspath(top)
 
-        if (set(files) & DOCKER_COMPOSE_FILENAME_SET) and dir_path not in docker_compose_dirs:
-            docker_compose_dirs.append(dir_path)
-            logger.info('(%d) Found: %s', len(docker_compose_dirs), colored(dir_path, 'cyan', repr=True))
+        if (set(files) & DOCKER_COMPOSE_FILENAME_SET) and top not in docker_compose_dirs:
+            docker_compose_dirs.append(top)
+            logger.info('(%d) Found: %s', len(docker_compose_dirs), colored(top, 'cyan', repr=True))
 
     logger.info('Found %s Docker Compose projects', colored(len(docker_compose_dirs), 'default', bold=True))
 
@@ -293,9 +292,10 @@ def run_command_chain(command_chain: list[tuple[str | None, list[str]]], dir_pat
     return prev_status, last_executed_command
 
 
-error_info_list: list[str] = []
-def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[str | None, list[str]]]) -> None:
+def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[str | None, list[str]]]) -> list[str]:
     logger.info('Running %s in all Docker Compose projects', colored(get_command_chain_str(command_chain), 'green', bold=True))
+
+    error_info_list = []
 
     for index, dir_path in enumerate(docker_compose_dirs, start=1):
         logger.info('(%d/%d) Running in %s', index, len(docker_compose_dirs), colored(dir_path, 'cyan', repr=True))
@@ -307,10 +307,10 @@ def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[s
             logger.error(error_info)
             error_info_list.append(error_info)
 
+    return error_info_list
+
 
 def main() -> None:
-    global shell_args
-
     init_logging()
     shell_args = parse_args()
 
@@ -334,9 +334,10 @@ def main() -> None:
     docker_compose_dirs = scan_dirs(shell_args.scan_dir)
 
     if shell_args.command_chain:
-        all_run_commands(docker_compose_dirs, shell_args.command_chain)
+        error_info_list = all_run_commands(docker_compose_dirs, shell_args.command_chain)
     else:
         logger.info('No Docker Compose command specified')
+        error_info_list = []
 
     command_str = get_command_str([PROGRAM_NAME] + sys.argv[1:])
 
