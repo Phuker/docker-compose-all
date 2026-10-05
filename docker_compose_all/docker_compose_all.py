@@ -273,7 +273,7 @@ def run_command_chain(command_chain: list[tuple[str | None, list[str]]], dir_pat
 
         command = DOCKER_COMPOSE_COMMAND_PREFIX + docker_compose_args
         last_executed_command = get_command_str(command)
-        logger.info('Running %s', colored(last_executed_command, 'green', bold=True))
+        logger.info('Running %s', colored(last_executed_command, 'green'))
 
         try:
             subprocess.check_call(command, cwd=dir_path)
@@ -290,13 +290,13 @@ def all_run_commands(docker_compose_dirs: list[str], command_chain: list[tuple[s
     logger.info('Running %s in all Docker Compose projects', colored(get_command_chain_str(command_chain), 'green', bold=True))
 
     for index, dir_path in enumerate(docker_compose_dirs, start=1):
-        logger.info('(%d/%d) Running in %s', index, len(docker_compose_dirs), colored(dir_path, 'green', repr=True))
+        logger.info('(%d/%d) Running in %s', index, len(docker_compose_dirs), colored(dir_path, 'cyan', repr=True))
 
         status, last_executed_command = run_command_chain(command_chain, dir_path)
 
         if status != 0:
-            error_info = f'Directory: {dir_path!r}, failed command: {last_executed_command}, exit status: {status}'
-            logger.error(colored(error_info, 'red', bold=True))
+            error_info = f'Directory: {colored(dir_path, "red", bold=True, repr=True)}, failed command: {colored(last_executed_command, "red", bold=True)}, exit status: {colored(status, "red", bold=True)}'
+            logger.error(error_info)
             error_info_list.append(error_info)
 
 
@@ -335,18 +335,18 @@ def main() -> None:
     if len(error_info_list) > 0:
         logger.info('Errors while running commands:')
         for error_info in error_info_list:
-            logger.error(colored(error_info, 'red', bold=True))
+            logger.error(error_info)
 
         if shell_args.cleanup:
             logger.warning('Skipping cleanup because errors occurred')
 
-        logger.info('Command %s failed', colored(command_str, 'default', bold=True))
+        logger.info('Command %s failed', colored(command_str, 'red', bold=True))
         sys.exit(1)
     else:
         if shell_args.cleanup:
             cleanup()
 
-        logger.info('Command %s succeeded', colored(command_str, 'default', bold=True))
+        logger.info('Command %s succeeded', colored(command_str, 'green', bold=True))
 
 
 if __name__ == '__main__':

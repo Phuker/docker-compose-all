@@ -17,6 +17,14 @@ docker-compose-all 是一个 Python CLI 工具，递归扫描目录（默认 `.`
 - 将各项目的 `dir_path` 作为 `cwd` 参数传入 `subprocess.check_call()`，不改变当前进程 cwd，无 cwd 副作用。
 - `cleanup()` 由 `--dca-cleanup` 触发，对应 `COMMANDS_CLEANUP` / `COMMAND_CLEANUP_*`，依次执行 `docker network/image/builder prune -f`，仅在全部项目命令成功（`error_info_list` 为空）时执行；存在错误时跳过并告警。清理命令用 `subprocess.call` 执行，返回码被忽略。
 
+## 日志颜色与字重
+
+使用 `colored()` 改变日志正文的颜色、字重，设计要体现出主/次、总/分，内部统一，符合 CLI 软件惯例。仅局部突出显示日志正文中的值，其余文本保持普通样式。
+
+颜色表达语义类别：`green` 表示命令（待执行、执行成功，失败命令除外），`cyan` 表示路径（错误信息除外），`red` 表示失败的命令、路径、错误信息，`default` 表示工具自身元信息（版本 banner）等普通信息
+
+字重表达层级与强调：`bold` 用于总览、阶段性信息、结果汇总、需要强调的值，分项/条目级信息（每个发现的目录、逐项目执行的路径与命令）不加粗
+
 ## 参数
 
 - 工具自身选项统一用 `--dca-` / `--docker-compose-all-` 前缀（例如 `--dca-scan-dir`、`--dca-verbose`、`--dca-cleanup`），与 `docker compose` 选项隔离；parser 设 `allow_abbrev=False`，不可用前缀缩写参数。
