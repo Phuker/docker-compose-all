@@ -49,7 +49,7 @@ docker-compose-all --help
 # docker-compose-all --help
 usage: docker-compose-all [--dca-scan-dir dir_path] [--dca-verbose] [--dca-cleanup] [-h] [-V] [docker_compose_args ...]
 
-docker-compose-all 0.2.2
+docker-compose-all 1.0.0
 Recursively scan a directory for Docker Compose projects and run docker compose in every project found.
 https://github.com/Phuker/docker-compose-all
 
